@@ -1,7 +1,6 @@
-name: "cars"
-output_dir: "docs"
+name: "R Notebook"
 navbar:
-  title: "Conjunctions"
+  title: "R Notebook"
   left:
   - text: "Notebook test"
    href: notebook.html
