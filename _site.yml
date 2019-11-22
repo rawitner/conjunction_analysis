@@ -1,0 +1,10 @@
+name: "cars"
+output_dir: "docs"
+navbar:
+  title: "Conjunctions"
+  left:
+  - text: "Notebook test"
+   href: notebook.html
+output:
+  html_document:
+ theme: cosmo
