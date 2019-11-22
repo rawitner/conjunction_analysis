@@ -1,11 +1,12 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output: html_document
 ---
 
 # Conjunction Analysis
 
 Testing functionality of R notebook.
+
 ```{r}
 library(tidyverse)
 library(RColorBrewer)
