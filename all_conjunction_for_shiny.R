@@ -1,50 +1,12 @@
 library(tidyverse)
+library(RColorBrewer)
 #all_conjs = readRDS("all_conjs")
 derelicts = readRDS("derelicts")
 #file_list = readRDS("file_list")
 mcma_objs = readRDS("mcma_objs")
 today = "22NOV2019"
 
-# SKIP
-mcma_objs = data.frame()
-for (i in 1:7) {
-  temp_data = readxl::read_xlsx("/Users/rachelwitner/Documents/Centauri/fall part time/MCMA_V2point0.xlsx", sheet = i)
-  mcma_objs = rbind(mcma_objs, temp_data)
-}
-chigh = readxl::read_xlsx("/Users/rachelwitner/Documents/Centauri/fall part time/MCMA_V2point0.xlsx", sheet = 8) %>%
-  mutate(cluster = "CHIGH", cluster_new = "CHIGH", launch = NA) %>%
-  dplyr::select(c(noradId = `SAT#`,
-                  name = Name,
-                  apogee = Apogee,
-                  perigee = Perigee,
-                  cluster,
-                  cluster_new,
-                  launch,
-                  inclination = Incline,
-                  mass = `Mass (kg)`)) %>%
-  filter(!is.na(noradId)) %>% 
-  dplyr::select(-launch) %>% 
-  left_join(dplyr::select(derelicts, c(noradId, launch)), by="noradId")
-
-mcma_objs = rbind(mcma_objs, chigh)
-
-# add country and type to mcma_objs
-mcma_objs = left_join(mcma_objs, dplyr::select(derelicts, c(noradId, country, type)), by="noradId")
-
-# fix missing values for two CHIGH objects
-mcma_objs$type[mcma_objs$noradId == 31116] <- "ROCKET BODY"
-mcma_objs$type[mcma_objs$noradId == 38253] <- "ROCKET BODY"
-mcma_objs$country[mcma_objs$noradId == 31116] <- "PRC"
-mcma_objs$country[mcma_objs$noradId == 38253] <- "PRC"
-mcma_objs$launch[mcma_objs$noradId == 31116] <- as.POSIXct("2007-04-13", tz="UTC")
-mcma_objs$launch[mcma_objs$noradId == 38253] <- as.POSIXct("2012-04-29", tz="UTC")
-
-
-# view new objects
-mcma_objs %>% filter(cluster == "elsewhere" & cluster_new != "cc615")
-########################################
-
-path = "/Users/rachelwitner/Documents/Centauri/fall part time/conj_data/new/"
+path = "conj_data/"
 file_list = list.files(path)
 #file_list_new = list.files(path)
 #file_list_new = file_list_new[!(file_list_new %in% file_list)] # only the new conjunctions
@@ -90,16 +52,16 @@ p = all_conjs %>%
   left_join(country_codes, by="country") %>% 
   group_by(clusterLab) %>%
   mutate(encountersPerClust = sum(numEncounters), 
-         p = numEncounters / encountersPerClust * 100) #%>%
+         p = numEncounters / encountersPerClust * 100) %>%
   group_by(clusterLab) %>%
   mutate(country_new = if_else(p < 2, "Other", Country)) %>% 
   mutate(p = if_else(country_new=="Other", mean(p[country_new=="Other"]), p))
 
-colourCount = length(unique(p$Country))
+colourCount = length(unique(p$country_new))
 getPalette = colorRampPalette(brewer.pal(9, "Set1"))
 
 ggplot() + 
-  geom_bar(data = p, aes(x=clusterLab, y=p/100, group=Country, fill=Country), stat="identity")+
+  geom_bar(data = p, aes(x=clusterLab, y=p/100, group=country_new, fill=country_new), stat="identity")+
   geom_text(data = unique(dplyr::select(p, c(clusterLab, encountersPerClust))), position = position_stack(vjust=1.05), 
             aes(x=clusterLab, y=1, label=encountersPerClust))+
   theme_minimal() +
@@ -108,7 +70,7 @@ ggplot() +
   labs(x="Cluster",y="", title = "Percent of Encounters by Country", fill="Country",
        subtitle="Number of encounters shown above each bar", caption=paste0("Encounters from 20OCT2019-", today))
 
-ggsave(paste0("/Users/rachelwitner/Documents/Centauri/fall part time/plots/percentEncountersByCountry_", today, ".jpeg"),device="jpeg")
+ggsave(paste0("output/percentEncountersByCountry_", today, ".jpeg"),device="jpeg")
 
 #####################
 # PC FOR CONJUNCTIONS
