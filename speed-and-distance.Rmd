@@ -1,13 +1,12 @@
 ---
 title: "R Notebook"
-output: html_document
 ---
 
 # Conjunction Analysis
 
 Testing functionality of R notebook.
 
-```{r}
+```{r eval=FALSE}
 library(tidyverse)
 library(RColorBrewer)
 #all_conjs = readRDS("all_conjs")
