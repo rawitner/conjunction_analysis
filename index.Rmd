@@ -1,0 +1,10 @@
+---
+title: "Welcome"
+author: "Rachel Witner"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Hello! Welcome!
