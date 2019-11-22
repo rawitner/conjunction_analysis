@@ -1,9 +1,0 @@
-name: "R Notebook"
-navbar:
-  title: "R Notebook"
-  left:
-  - text: "Notebook test"
-   href: notebook.html
-output:
-  html_document:
- theme: cosmo
