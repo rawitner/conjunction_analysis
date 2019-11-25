@@ -1,0 +1,34 @@
+---
+title: "nov25"
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
+---
+
+```{r warning=F, message=F}
+library(tidyverse)
+library(kableExtra)
+library(knitr)
+mcma_objs = readRDS("mcma_objs")
+all_conjs_expanded = readRDS("all_conjs_expanded")
+
+top50 = mcma_objs %>% 
+  arrange(desc(totalRisk)) %>%
+  head(50)
+
+top50 = all_conjs_expanded %>%
+  filter(noradId %in% top50$noradId) %>%
+  group_by(noradId) %>%
+  summarise(numConjs = n(),
+            `closestApproach(km)` = min(Range),
+            avgNumOpSats = mean(numOpSats),
+            medianNumOpSats = median(numOpSats),
+            `avgPersistenceOfConjAlt(yrs)` = mean(persistence),
+            `medianPersistenceOfConjAlt(yrs)` = median(persistence)) %>% 
+  right_join(top50, by="noradId")
+
+head(top50) %>% kable() %>% kable_styling()
+```
+
