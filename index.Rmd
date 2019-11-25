@@ -46,7 +46,7 @@ all_conjs %>%
 
 ## Percent of Encounters by Country
 
-```{r fig.width=8}
+```{r fig.width=7.5}
 # read in country codes
 country_codes = read_csv("./country_codes.csv", 
                          col_names = c("country", "Country"), col_types = "cc", skip = 1) %>%
@@ -96,27 +96,33 @@ top50 = all_conjs_expanded %>%
   filter(noradId %in% top50$noradId) %>%
   group_by(noradId) %>%
   summarise(numConjs = n(),
-            `closestApproach(km)` = min(Range),
+            `closestApproach(m)` = min(Range)*1000,
             avgNumOpSats = mean(numOpSats),
             medianNumOpSats = median(numOpSats),
             `avgPersistenceOfConjAlt(yrs)` = mean(persistence),
-            `medianPersistenceOfConjAlt(yrs)` = median(persistence)) %>% 
+            `medianPersistenceOfConjAlt(yrs)` = median(persistence),
+            numEncountersBelow1km = length(Range[Range<1])) %>% 
   right_join(top50, by="noradId")
 ```
 
 Current list of top 50 objects with highest risk:
 ```{r }
-top50 %>% dplyr::select(c("noradId", "totalRisk", "numConjs","closestApproach(km)",
+top50 %>% dplyr::select(c("noradId", "totalRisk", "numConjs","closestApproach(m)",
                           "avgNumOpSats","medianNumOpSats",
                           "avgPersistenceOfConjAlt(yrs)",
-                          "medianPersistenceOfConjAlt(yrs)", "apogee", "perigee",
+                          "medianPersistenceOfConjAlt(yrs)", "numEncountersBelow1km","apogee", "perigee",
                           "cluster_new","launch","inclination","mass","type","country")) %>%
   DT::datatable() %>%
-  formatRound(columns = c("closestApproach(km)","avgNumOpSats","medianNumOpSats",
+  formatRound(columns = c("closestApproach(m)","avgNumOpSats","medianNumOpSats",
   "avgPersistenceOfConjAlt(yrs)","medianPersistenceOfConjAlt(yrs)", "totalRisk"), digits=1) %>%
   formatDate(columns = "launch", method = "toLocaleDateString")
 ```
 
+- `avgNumOpSats` is the average number of operational satellites within 100 km above or below each conjunction
+- `medianNumOpSats` is the same as `avgNumOpSats` but median instead of mean
+- `avgPersistenceOfConjAlt` is the average persistence of debris produced at the altitude of encounters (a rough approximation based on altitude)
+- `medianPersistenceOfConjAlt` is the same as `avgPersistenceOfConjAlt` but median instead of mean
+- `numEncountersBelow1km` is the number of encounters below 1 km miss distance
 
 ### Risk among all objects
 Among all objects, percent of risk accounted for by each cluster
