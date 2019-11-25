@@ -118,6 +118,7 @@ top50 %>% dplyr::select(c("noradId", "totalRisk", "numConjs","closestApproach(m)
   formatDate(columns = "launch", method = "toLocaleDateString")
 ```
 
+- `numConjs` is the total number of conjunctions (<5km) the object has been in (since 20OCT2019)
 - `avgNumOpSats` is the average number of operational satellites within 100 km above or below each conjunction
 - `medianNumOpSats` is the same as `avgNumOpSats` but median instead of mean
 - `avgPersistenceOfConjAlt` is the average persistence of debris produced at the altitude of encounters (a rough approximation based on altitude)
