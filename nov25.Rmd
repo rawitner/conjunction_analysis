@@ -2,11 +2,13 @@
 output: rmarkdown::github_document
 always_allow_html: true
 ---
+## November 25 worst offender analysis
 
-```{r warning=F, message=F}
+```{r warning=F, message=F, echo=F}
 library(tidyverse)
 library(kableExtra)
 library(knitr)
+library(DT)
 mcma_objs = readRDS("mcma_objs")
 all_conjs_expanded = readRDS("all_conjs_expanded")
 
@@ -24,7 +26,8 @@ top50 = all_conjs_expanded %>%
             `avgPersistenceOfConjAlt(yrs)` = mean(persistence),
             `medianPersistenceOfConjAlt(yrs)` = median(persistence)) %>% 
   right_join(top50, by="noradId")
-
-head(top50) %>% kable() %>% kable_styling()
+```
+```{r echo=F, warning=F, message=F}
+head(top50) %>% DT::datatable() #%>% kable() %>% kable_styling()
 ```
 
