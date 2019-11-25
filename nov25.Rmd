@@ -1,6 +1,7 @@
 ---
-output: rmarkdown::github_document
-always_allow_html: true
+#output: rmarkdown::github_document
+#always_allow_html: true
+output: html_document
 ---
 ## November 25 worst offender analysis
 
