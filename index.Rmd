@@ -7,7 +7,8 @@ Welcome!! This is a test.
 ```{r}
 library(DT)
 iris %>% datatable()
-
+getwd()
+list.files("docs/")
 ```
 
-[linked phrase](https://rmarkdown.rstudio.com/authoring_basics.html)
+[linked phrase](docs/nov25.html)
