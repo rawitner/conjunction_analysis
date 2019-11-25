@@ -2,13 +2,67 @@
 output: html_document
 ---
 
-Welcome!! This is a test.
-
-```{r}
-library(DT)
-iris %>% datatable()
-getwd()
-list.files("docs/")
+```{r include=F}
+knitr::opts_chunk$set(echo=F)
+knitr::opts_chunk$set(warning=F)
+knitr::opts_chunk$set(message=F)
 ```
 
-[linked phrase](docs/nov25.html)
+## November 25 worst offender analysis
+
+Using the below algorithm: ![SMC derelicts graphic](SMCderelicts.png)
+
+with all weights = 1 (for now-- will experiment with later)
+
+```{r }
+library(tidyverse)
+library(kableExtra)
+library(knitr)
+library(DT)
+mcma_objs = readRDS("mcma_objs")
+all_conjs_expanded = readRDS("all_conjs_expanded")
+
+top50 = mcma_objs %>% 
+  arrange(desc(totalRisk)) %>%
+  head(50)
+
+top50 = all_conjs_expanded %>%
+  filter(noradId %in% top50$noradId) %>%
+  group_by(noradId) %>%
+  summarise(numConjs = n(),
+            `closestApproach(km)` = min(Range),
+            avgNumOpSats = mean(numOpSats),
+            medianNumOpSats = median(numOpSats),
+            `avgPersistenceOfConjAlt(yrs)` = mean(persistence),
+            `medianPersistenceOfConjAlt(yrs)` = median(persistence)) %>% 
+  right_join(top50, by="noradId")
+```
+
+Current list of top 50 objects with highest risk:
+```{r }
+top50 %>% DT::datatable() %>%
+  formatRound(columns = c("closestApproach(km)","avgNumOpSats","medianNumOpSats",
+  "avgPersistenceOfConjAlt(yrs)","medianPersistenceOfConjAlt(yrs)", "totalRisk"), digits=1) %>%
+  formatDate(columns = "launch", method = "toLocaleDateString")
+```
+
+
+### Risk among all objects
+Among all objects, percent of risk accounted for by each cluster
+
+```{r}
+mcma_objs %>% group_by(cluster_new) %>%
+  summarise(p = n()) %>% 
+  mutate(p = p/nrow(mcma_objs)*100,
+         cluster_new = factor(cluster_new,
+                             levels = c("cc615", "cc775", "cc850", "cc975", "cc1200", "cc1500", "cleo","CHIGH"),
+                             ordered = T))%>%
+  ggplot(aes(x=1, y=p, fill=cluster_new)) +
+  geom_col(width = .5)+
+  geom_text(position = position_stack(vjust=.5), 
+            aes(label=paste0(round(p), "%")))+
+  theme_minimal()+
+  theme(axis.title.x = element_blank(), axis.text = element_blank(), 
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(fill="Cluster", y="Risk")
+```
