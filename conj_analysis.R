@@ -5,7 +5,7 @@ derelicts = readRDS("derelicts")
 derelictDat = readRDS("derelictDatNew")
 file_list = readRDS("file_list")
 mcma_objs = readRDS("mcma_objs")
-today = "22NOV2019" # update daily
+today = "25NOV2019" # update daily
 path = "conj_data/"
 
 # read in new conjunction files
@@ -16,6 +16,9 @@ all_conjs_new = data.frame()
 for (i in 1:length(file_list_new)) {
   temp_data = read_csv(paste0(path, file_list_new[i]))
   all_conjs_new = rbind(all_conjs_new, temp_data) #for each iteration, bind the new data to the building dataset
+}
+
+for (i in 1:nrow(all_conjs_new)) {
   clusts = sort(c(all_conjs_new$PrimaryCluster[i], all_conjs_new$SecondaryCluster[i]), decreasing = T)
   all_conjs_new$clusters[i] = paste0(clusts[1], "-", clusts[2])
 }
@@ -192,9 +195,25 @@ mcma_objs %>%
 
 ggsave(paste0("output/riskPerCluster_", today, ".jpeg"),device="jpeg")
 
-mcma_objs %>% 
+top50 = mcma_objs %>% 
   arrange(desc(totalRisk)) %>%
-  head(100) %>% View()
+  head(50)
+
+top50 = all_conjs_expanded %>%
+  filter(noradId %in% top50$noradId) %>%
+  group_by(noradId) %>%
+  summarise(numConjs = n(),
+            `closestApproach(km)` = min(Range),
+            avgNumOpSats = mean(numOpSats),
+            medianNumOpSats = median(numOpSats),
+            `avgPersistenceOfConjAlt(yrs)` = mean(persistence),
+            `medianPersistenceOfConjAlt(yrs)` = median(persistence)) %>% 
+  right_join(top50, by="noradId")
+
+saveRDS(mcma_objs, "mcma_objs")
+saveRDS(all_conjs_expanded, "all_conjs_expanded")
+# okay, so here's the 100 worst objects... what's the best way to verify??
+# implement Darren's method next.
 
   rowid_to_column() %>%
   ggplot(aes(x=totalRisk)) +
