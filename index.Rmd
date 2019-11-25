@@ -6,22 +6,88 @@ output: html_document
 knitr::opts_chunk$set(echo=F)
 knitr::opts_chunk$set(warning=F)
 knitr::opts_chunk$set(message=F)
-```
 
-## November 25 worst offender analysis
-
-Using the below algorithm: ![SMC derelicts graphic](SMCderelicts.png)
-
-with all weights = 1 (for now-- will experiment with later)
-
-```{r }
 library(tidyverse)
 library(kableExtra)
 library(knitr)
 library(DT)
+library(RColorBrewer)
 mcma_objs = readRDS("mcma_objs")
+all_conjs = readRDS("all_conjs")
 all_conjs_expanded = readRDS("all_conjs_expanded")
+today="25NOV2019"
+```
 
+## Miss distance vs cumulative count plot
+```{r}
+# axis ticks for log scale
+ticks <- 1:10
+ooms <- 10^(0:3) # define orders of magnitudes
+breaks <- as.vector(ticks %o% ooms)
+
+show.labels <- c(T, F, F, F, T, F, T, F, F)
+labels <- as.character(breaks * show.labels)
+labels <- gsub("^0$", "", labels)
+
+all_conjs %>%
+  group_by(clusterLab) %>%
+  arrange(Range) %>%
+  mutate(rowid = 1, cumnum = cumsum(rowid)) %>% 
+  ggplot(aes(x=Range, y = cumnum, color=clusterLab)) + 
+  geom_line() +
+  theme_light() +
+  scale_x_log10(labels = labels, breaks = breaks) +
+  scale_y_log10(labels = labels, breaks = breaks) +
+  labs(x="Miss Distance (km)", y="Cumulative Number of Encounters", color="Cluster",
+       title="Cumulative Number of Encounters by Cluster", subtitle = paste0("Encounters from 20OCT2019-", today))+
+  scale_color_brewer(palette="Set1")
+```
+
+
+## Percent of Encounters by Country
+
+```{r fig.width=8}
+# read in country codes
+country_codes = read_csv("./country_codes.csv", 
+                         col_names = c("country", "Country"), col_types = "cc", skip = 1) %>%
+  mutate(Country = str_to_title(Country),
+         Country = if_else(str_length(Country) > 20, country, Country))
+
+# plot percent of encounters by country
+p = all_conjs %>%
+  mutate(noradId = as.numeric(gsub("--.*$", "", PrimarySatellite ))) %>%
+  left_join(dplyr::select(mcma_objs, c(noradId, country)), by="noradId") %>%
+  mutate(country = if_else(country == "CHBZ", "PRC", country)) %>%
+  group_by(clusterLab, country) %>% 
+  summarise(numEncounters = n()) %>%
+  left_join(country_codes, by="country") %>% 
+  group_by(clusterLab) %>%
+  mutate(encountersPerClust = sum(numEncounters), 
+         p = numEncounters / encountersPerClust * 100) %>%
+  group_by(clusterLab) %>%
+  mutate(country_new = if_else(p < 2, "Other", Country)) %>% 
+  mutate(p = if_else(country_new=="Other", mean(p[country_new=="Other"]), p))
+
+colourCount = length(unique(p$country_new))
+getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+
+ggplot() + 
+  geom_bar(data = p, aes(x=clusterLab, y=p/100, group=country_new, fill=country_new), stat="identity")+
+  geom_text(data = unique(dplyr::select(p, c(clusterLab, encountersPerClust))), position = position_stack(vjust=1.05), 
+            aes(x=clusterLab, y=1, label=encountersPerClust))+
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent) + 
+  scale_fill_manual(values = getPalette(colourCount))+
+  labs(x="Cluster",y="", title = "Percent of Encounters by Country", fill="Country",
+       subtitle="Number of encounters shown above each bar", caption=paste0("Encounters from 20OCT2019-", today))
+```
+
+
+## Worst offender analysis-- Method 1 (Rachel's method)
+
+Using the below algorithm (with all weights equal to 1 for now-- will experiment with later): ![SMC derelicts graphic](SMCderelicts.png)
+
+```{r }
 top50 = mcma_objs %>% 
   arrange(desc(totalRisk)) %>%
   head(50)
@@ -40,7 +106,12 @@ top50 = all_conjs_expanded %>%
 
 Current list of top 50 objects with highest risk:
 ```{r }
-top50 %>% DT::datatable() %>%
+top50 %>% dplyr::select(c("noradId", "totalRisk", "numConjs","closestApproach(km)",
+                          "avgNumOpSats","medianNumOpSats",
+                          "avgPersistenceOfConjAlt(yrs)",
+                          "medianPersistenceOfConjAlt(yrs)", "apogee", "perigee",
+                          "cluster_new","launch","inclination","mass","type","country")) %>%
+  DT::datatable() %>%
   formatRound(columns = c("closestApproach(km)","avgNumOpSats","medianNumOpSats",
   "avgPersistenceOfConjAlt(yrs)","medianPersistenceOfConjAlt(yrs)", "totalRisk"), digits=1) %>%
   formatDate(columns = "launch", method = "toLocaleDateString")
