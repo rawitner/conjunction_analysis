@@ -1,10 +1,10 @@
 library(tidyverse)
 library(RColorBrewer)
-all_conjs = readRDS("all_conjs")
-derelicts = readRDS("derelicts")
-derelictDat = readRDS("derelictDatNew")
-file_list = readRDS("file_list")
-mcma_objs = readRDS("mcma_objs")
+all_conjs = readRDS("RDSfiles/all_conjs")
+derelicts = readRDS("RDSfiles/derelicts")
+derelictDat = readRDS("RDSfiles/derelictDatNew")
+file_list = readRDS("RDSfiles/file_list")
+mcma_objs = readRDS("RDSfiles/mcma_objs")
 today = "30NOV2019" # update daily
 path = "conj_data/"
 
@@ -37,9 +37,9 @@ all_conjs_new =  all_conjs_new %>%
 
 # append new conjunctions to previous
 all_conjs = rbind(all_conjs, all_conjs_new)
-saveRDS(all_conjs, "all_conjs")
+saveRDS(all_conjs, "RDSfiles/all_conjs")
 file_list = append(file_list, file_list_new)
-saveRDS(file_list, "file_list")
+saveRDS(file_list, "RDSfiles/file_list")
 
 # read in country codes
 country_codes = read_csv("./country_codes.csv", 
