@@ -115,7 +115,7 @@ top50 %>% dplyr::select(cols_ordered) %>%
          `total risk`=totalRisk) %>%
   DT::datatable(rownames=F, extensions = c('Buttons', 'Responsive'),
                 options = list( lengthMenu = c(10, 20, 30, 40, 50),
-                                buttons = list(list(extend='excel',filename="worst_offenders_1", text="Download data")),
+                                buttons = list(list(extend='excel',filename="worst_offenders_1", text="Download data", title=paste0("Worst offenders (method 1) as of ", today))),
                                 dom = 'Bfrtip'#,
                                 )) %>%
   formatRound(columns = c("closest approach (m)","avg num op sats","med num op sats",
