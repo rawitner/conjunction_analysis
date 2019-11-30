@@ -42,7 +42,7 @@ file_list = append(file_list, file_list_new)
 saveRDS(file_list, "RDSfiles/file_list")
 
 # read in country codes
-country_codes = read_csv("./country_codes.csv", 
+country_codes = read_csv("./misc_files/country_codes.csv", 
                          col_names = c("country", "Country"), col_types = "cc", skip = 1) %>%
   mutate(Country = str_to_title(Country),
          Country = if_else(str_length(Country) > 20, country, Country))
