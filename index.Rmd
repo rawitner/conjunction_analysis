@@ -13,10 +13,10 @@ library(kableExtra)
 library(knitr)
 library(DT)
 library(RColorBrewer)
-mcma_objs = readRDS("mcma_objs")
-all_conjs = readRDS("all_conjs")
-all_conjs_expanded = readRDS("all_conjs_expanded")
-today="25NOV2019"
+mcma_objs = readRDS("RDSfiles/mcma_objs")
+all_conjs = readRDS("RDSfiles/all_conjs")
+all_conjs_expanded = readRDS("RDSfiles/all_conjs_expanded")
+today="30NOV2019"
 ```
 
 ## Miss distance vs cumulative count plot
@@ -84,7 +84,7 @@ ggplot() +
 ```
 
 
-## Worst offender analysis-- Method 1 (Rachel's method)
+## Worst offender analysis-- Method 1
 
 Using the below algorithm (with all weights equal to 1 for now-- will experiment with later): ![SMC derelicts graphic](SMCderelicts.png)
 
@@ -113,7 +113,11 @@ top50 %>% dplyr::select(c("noradId", "totalRisk", "numConjs","closestApproach(m)
                           "avgPersistenceOfConjAlt(yrs)",
                           "medianPersistenceOfConjAlt(yrs)", "numEncountersBelow1km","apogee", "perigee",
                           "cluster_new","launch","inclination","mass","type","country")) %>%
-  DT::datatable() %>%
+  DT::datatable(rownames=F, 
+                options = list(
+                  #columnDefs = list(list(className = 'dt-center', targets = 4)),
+                  lengthMenu = c(10, 20, 30, 40, 50) )
+                ) %>%
   formatRound(columns = c("closestApproach(m)","avgNumOpSats","medianNumOpSats",
   "avgPersistenceOfConjAlt(yrs)","medianPersistenceOfConjAlt(yrs)", "totalRisk"), digits=1) %>%
   formatDate(columns = "launch", method = "toLocaleDateString")
@@ -145,3 +149,5 @@ mcma_objs %>% group_by(cluster_new) %>%
         panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   labs(fill="Cluster", y="Risk")
 ```
+
+## Worst offender analysis-- Method 2 (Darren's method)
