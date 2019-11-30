@@ -108,29 +108,21 @@ top50 = all_conjs_expanded %>%
 
 Current list of top 50 objects with highest risk:
 ```{r }
-top50 %>% dplyr::select(c("noradId", "cluster_new", "totalRisk", "num conjs","closest approach (m)",
-                          "avg num op sats","med num op sats",
-                          "avg persist of conj alt",
-                          "med persist of conj alt", "num encounters <1 km")) %>%
-  rename(cluster=cluster_new,
-         `total risk`=totalRisk) %>%
-  DT::datatable(rownames=F, extensions = 'Buttons',
-                options = list( lengthMenu = c(10, 20, 30, 40, 50),
-                                buttons = 'csv',
-                                dom = 'Bfrtip')) %>%
-  formatRound(columns = c("closest approach (m)","avg num op sats","med num op sats",
-  "avg persist of conj alt","med persist of conj alt", "total risk"), digits=1)
+cols_ordered = c("noradId", "cluster_new", "totalRisk", "num conjs", "closest approach (m)", "avg num op sats","med num op sats", "avg persist of conj alt", "med persist of conj alt", "num encounters <1 km", "apogee", "perigee","launch","inclination","mass","type","country")
 
-top50 %>% dplyr::select(c("noradId", "cluster_new", "totalRisk","apogee",
-                          "perigee","launch","inclination","mass","type","country")) %>%
+top50 %>% dplyr::select(cols_ordered) %>%
   rename(cluster=cluster_new,
          `total risk`=totalRisk) %>%
-  DT::datatable(rownames=F, extensions = 'Buttons',
+  DT::datatable(rownames=F, extensions = c('Buttons', 'Responsive'),
                 options = list( lengthMenu = c(10, 20, 30, 40, 50),
-                                buttons = 'csv',
-                                dom = 'Bfrtip')) %>%
-  formatRound(columns = c("total risk"), digits=1) %>%
-  formatDate(columns = "launch", method = "toLocaleDateString")
+                                buttons = list(list(extend='excel',filename="worst_offenders_1", text="Download data")),
+                                dom = 'Bfrtip'#,
+                                )) %>%
+  formatRound(columns = c("closest approach (m)","avg num op sats","med num op sats",
+  "avg persist of conj alt","med persist of conj alt", "total risk"), digits=1) %>%
+  formatDate(columns = "launch", method = "toDateString", params = list('en-US', list(year = 'numeric', month = 'numeric', day='numeric')
+      ))
+
 ```
 
 - `num conjs` is the total number of conjunctions (<5km) the object has been in (since 20OCT2019)
