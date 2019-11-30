@@ -1,6 +1,6 @@
 ---
 output: html_document
-title: conjunction analysis
+title: Conjunction Analysis
 ---
 
 ```{r include=F}
@@ -26,7 +26,7 @@ ticks <- 1:10
 ooms <- 10^(0:3) # define orders of magnitudes
 breaks <- as.vector(ticks %o% ooms)
 
-show.labels <- c(T, F, F, F, T, F, T, F, F)
+show.labels <- c(T, F, F, F, T, F, T, F)
 labels <- as.character(breaks * show.labels)
 labels <- gsub("^0$", "", labels)
 
@@ -96,39 +96,49 @@ top50 = mcma_objs %>%
 top50 = all_conjs_expanded %>%
   filter(noradId %in% top50$noradId) %>%
   group_by(noradId) %>%
-  summarise(numConjs = n(),
-            `closestApproach(m)` = min(Range)*1000,
-            avgNumOpSats = mean(numOpSats),
-            medianNumOpSats = median(numOpSats),
-            `avgPersistenceOfConjAlt(yrs)` = mean(persistence),
-            `medianPersistenceOfConjAlt(yrs)` = median(persistence),
-            numEncountersBelow1km = length(Range[Range<1])) %>% 
+  summarise(`num conjs` = n(),
+            `closest approach (m)` = min(Range)*1000,
+            `avg num op sats` = mean(numOpSats),
+            `med num op sats` = median(numOpSats),
+            `avg persist of conj alt` = mean(persistence),
+            `med persist of conj alt` = median(persistence),
+            `num encounters <1 km` = length(Range[Range<1])) %>% 
   right_join(top50, by="noradId")
 ```
 
 Current list of top 50 objects with highest risk:
 ```{r }
-top50 %>% dplyr::select(c("noradId", "totalRisk", "numConjs","closestApproach(m)",
-                          "avgNumOpSats","medianNumOpSats",
-                          "avgPersistenceOfConjAlt(yrs)",
-                          "medianPersistenceOfConjAlt(yrs)", "numEncountersBelow1km","apogee", "perigee",
-                          "cluster_new","launch","inclination","mass","type","country")) %>%
-  DT::datatable(rownames=F, 
-                options = list(
-                  #columnDefs = list(list(className = 'dt-center', targets = 4)),
-                  lengthMenu = c(10, 20, 30, 40, 50) )
-                ) %>%
-  formatRound(columns = c("closestApproach(m)","avgNumOpSats","medianNumOpSats",
-  "avgPersistenceOfConjAlt(yrs)","medianPersistenceOfConjAlt(yrs)", "totalRisk"), digits=1) %>%
+top50 %>% dplyr::select(c("noradId", "cluster_new", "totalRisk", "num conjs","closest approach (m)",
+                          "avg num op sats","med num op sats",
+                          "avg persist of conj alt",
+                          "med persist of conj alt", "num encounters <1 km")) %>%
+  rename(cluster=cluster_new,
+         `total risk`=totalRisk) %>%
+  DT::datatable(rownames=F, extensions = 'Buttons',
+                options = list( lengthMenu = c(10, 20, 30, 40, 50),
+                                buttons = 'csv',
+                                dom = 'Bfrtip')) %>%
+  formatRound(columns = c("closest approach (m)","avg num op sats","med num op sats",
+  "avg persist of conj alt","med persist of conj alt", "total risk"), digits=1)
+
+top50 %>% dplyr::select(c("noradId", "cluster_new", "totalRisk","apogee",
+                          "perigee","launch","inclination","mass","type","country")) %>%
+  rename(cluster=cluster_new,
+         `total risk`=totalRisk) %>%
+  DT::datatable(rownames=F, extensions = 'Buttons',
+                options = list( lengthMenu = c(10, 20, 30, 40, 50),
+                                buttons = 'csv',
+                                dom = 'Bfrtip')) %>%
+  formatRound(columns = c("total risk"), digits=1) %>%
   formatDate(columns = "launch", method = "toLocaleDateString")
 ```
 
-- `numConjs` is the total number of conjunctions (<5km) the object has been in (since 20OCT2019)
-- `avgNumOpSats` is the average number of operational satellites within 100 km above or below each conjunction
-- `medianNumOpSats` is the same as `avgNumOpSats` but median instead of mean
-- `avgPersistenceOfConjAlt` is the average persistence of debris produced at the altitude of encounters (a rough approximation based on altitude)
-- `medianPersistenceOfConjAlt` is the same as `avgPersistenceOfConjAlt` but median instead of mean
-- `numEncountersBelow1km` is the number of encounters below 1 km miss distance
+- `num conjs` is the total number of conjunctions (<5km) the object has been in (since 20OCT2019)
+- `avg num op sats` is the average number of operational satellites within 100 km above or below each conjunction
+- `med num op sats` is the same as `avg num op sats` but median instead of mean
+- `avg persist of conj alt` is the average persistence (in years) of debris produced at the altitude of encounters (a rough approximation based on altitude)
+- `med persist of conj alt` is the same as `avg persist of conj alt` but median instead of mean
+- `num encounters <1 km` is the number of encounters below 1 km miss distance
 
 ### Risk among all objects
 Among all objects, percent of risk accounted for by each cluster
