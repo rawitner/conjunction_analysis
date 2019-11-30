@@ -49,7 +49,7 @@ all_conjs %>%
 
 ```{r fig.width=7.5}
 # read in country codes
-country_codes = read_csv("./country_codes.csv", 
+country_codes = read_csv("./misc_files/country_codes.csv", 
                          col_names = c("country", "Country"), col_types = "cc", skip = 1) %>%
   mutate(Country = str_to_title(Country),
          Country = if_else(str_length(Country) > 20, country, Country))
@@ -86,7 +86,7 @@ ggplot() +
 
 ## Worst offender analysis-- Method 1
 
-Using the below algorithm (with all weights equal to 1 for now-- will experiment with later): ![SMC derelicts graphic](SMCderelicts.png)
+Using the below algorithm (with all weights equal to 1 for now-- will experiment with later): ![SMC derelicts graphic](misc_files/SMCderelicts.png)
 
 ```{r }
 top50 = mcma_objs %>% 
