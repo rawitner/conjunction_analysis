@@ -5,7 +5,7 @@ derelicts = readRDS("derelicts")
 derelictDat = readRDS("derelictDatNew")
 file_list = readRDS("file_list")
 mcma_objs = readRDS("mcma_objs")
-today = "25NOV2019" # update daily
+today = "30NOV2019" # update daily
 path = "conj_data/"
 
 # read in new conjunction files
@@ -47,6 +47,12 @@ country_codes = read_csv("./country_codes.csv",
   mutate(Country = str_to_title(Country),
          Country = if_else(str_length(Country) > 20, country, Country))
 
+##############################################
+library(gmailr)
+my_threads <- gm_threads(num_results = 10)
+
+
+############################################
 # plot percent of encounters by country
 p = all_conjs %>%
   mutate(noradId = as.numeric(gsub("--.*$", "", PrimarySatellite ))) %>%
