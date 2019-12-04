@@ -5,7 +5,7 @@ derelicts = readRDS("RDSfiles/derelicts")
 derelictDat = readRDS("RDSfiles/derelictDatNew")
 file_list = readRDS("RDSfiles/file_list")
 mcma_objs = readRDS("RDSfiles/mcma_objs")
-today = "30NOV2019" # update daily
+today = "4DEC2019" # update daily
 path = "conj_data/"
 
 # read in new conjunction files
