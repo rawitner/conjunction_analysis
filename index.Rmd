@@ -16,7 +16,111 @@ library(RColorBrewer)
 mcma_objs = readRDS("RDSfiles/mcma_objs")
 all_conjs = readRDS("RDSfiles/all_conjs")
 all_conjs_expanded = readRDS("RDSfiles/all_conjs_expanded")
-today="4DEC2019"
+derelicts = readRDS("RDSfiles/derelicts")
+derelictDat = readRDS("RDSfiles/derelictDatNew")
+file_list = readRDS("RDSfiles/file_list")
+today="10DEC2019" # update daily
+path = "conj_data/"
+```
+
+```{r update_conj_files_function}
+# function to run each day
+update_conj_files = function() {
+  
+  # read in new conjunction files
+  file_list_new = list.files(path)
+  file_list_new = file_list_new[!(file_list_new %in% file_list)] # only the new conjunctions
+  
+  all_conjs_new = data.frame()
+  for (i in 1:length(file_list_new)) {
+    temp_data = read_csv(paste0(path, file_list_new[i]))
+    all_conjs_new = rbind(all_conjs_new, temp_data) #for each iteration, bind the new data to the building dataset
+  }
+  
+  for (i in 1:nrow(all_conjs_new)) {
+    clusts = sort(c(all_conjs_new$PrimaryCluster[i], all_conjs_new$SecondaryCluster[i]), decreasing = T)
+    all_conjs_new$clusters[i] = paste0(clusts[1], "-", clusts[2])
+  }
+  
+  all_conjs_new =  all_conjs_new %>%
+    mutate(firstClust = gsub("-.*$", "", clusters),
+           secondClust = sub(".*?-", "", clusters),
+           clusterLab = if_else(firstClust=="LEO" & secondClust=="LEO", "LEO",
+                                if_else(firstClust=="LEO" & secondClust!="LEO", "LEO-other",
+                                        if_else(firstClust=="HIGH" & secondClust=="HIGH", "HIGH",
+                                                if_else(firstClust=="HIGH" & secondClust!="HIGH", 
+                                                        "HIGH-other", firstClust)))),
+           clusterLab = factor(clusterLab,
+                               levels = c("615", "775", "850", "975", "1200", "1500", "LEO","LEO-other","HIGH-other"),
+                               ordered = T))
+  
+  # update file list
+  file_list = append(file_list, file_list_new)
+  saveRDS(file_list, "RDSfiles/file_list")
+  
+  # WORST OFFENDER alg for new conjunctions
+  combinedMass_v = vector()
+  persistence_v = vector()
+  numOpSats_v = vector()
+  for (i in 1:nrow(all_conjs_new)) {
+    conj = all_conjs_new[i, ]
+    noradId1 = gsub("--.*", "", conj$PrimarySatellite)
+    noradId2 = gsub("--.*", "", conj$SecondarySatellite)
+    obj1 = filter(mcma_objs, noradId == noradId1)
+    obj2 = filter(mcma_objs, noradId == noradId2)
+    
+    combinedMass = as.numeric(obj1$mass) + as.numeric(obj2$mass)
+    persistence = exp(intercept + slope * conj$Altitude)
+    
+    numOpSats = 0
+    for (j in 1:nrow(opSats)) {
+      # count how many op sats overlap in altitude
+      opSat = opSats[j,]
+      conjMinAlt = conj$Altitude - 100
+      conjMaxAlt = conj$Altitude + 100
+      if ((opSat$perigee > conjMinAlt &
+           opSat$apogee < conjMaxAlt) ||
+          (opSat$perigee < conjMaxAlt &
+           opSat$apogee > conjMaxAlt) ||
+          (opSat$perigee < conjMinAlt &
+           opSat$apogee > conjMinAlt)) {
+        numOpSats = numOpSats + 1
+      }
+    }
+    
+    combinedMass_v = append(combinedMass_v, toString(combinedMass))
+    persistence_v = append(persistence_v, persistence)
+    numOpSats_v = append(numOpSats_v, numOpSats)
+  }
+  all_conjs_new$combinedMass = combinedMass_v
+  all_conjs_new$persistence = persistence_v
+  all_conjs_new$numOpSats = numOpSats_v
+  
+  all_conjs_new = all_conjs_new %>%
+    mutate(combinedMass = if_else( grepl(",", combinedMass, fixed = T), # if it contains a comma
+      as.numeric(gsub(",.*", "", combinedMass)), # make substring up to the comma
+      as.numeric(combinedMass) )) %>% # otherwise don't change
+    mutate(risk = (combinedMass * persistence * numOpSats) / Range)
+  
+  # append new conjunctions to previous
+  all_conjs = rbind(all_conjs, all_conjs_new)
+  saveRDS(all_conjs, "RDSfiles/all_conjs")
+  
+  # sum risk for each object:
+  # list all conjunctions by first sat, then by second sat, then bind by rows
+  firstSet = all_conjs %>%
+    mutate(noradId = as.numeric(gsub("--.*", "", PrimarySatellite))) %>%
+    dplyr::select(-c(PrimarySatellite, SecondarySatellite))
+  
+  secondSet = all_conjs %>%
+    mutate(noradId = as.numeric(gsub("--.*", "", SecondarySatellite))) %>%
+    dplyr::select(-c(PrimarySatellite, SecondarySatellite))
+  
+  all_conjs_expanded = rbind(firstSet, secondSet)
+  saveRDS(all_conjs_expanded, "RDSfiles/all_conjs_expanded")
+}
+
+#update_conj_files()
 ```
 
 ## Miss distance vs cumulative count plot
@@ -92,6 +196,7 @@ Using the below algorithm (with all weights equal to 1 for now-- will experiment
 top50 = mcma_objs %>% 
   arrange(desc(totalRisk)) %>%
   head(50)
+
 
 top50 = all_conjs_expanded %>%
   filter(noradId %in% top50$noradId) %>%
