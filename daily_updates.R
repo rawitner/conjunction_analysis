@@ -1,6 +1,7 @@
 setwd("~/Documents/Centauri/fall part time/conjunction_analysis/")
 
 library(gmailr)
+library(dplyr)
 gm_auth_configure(path = "~/Documents/Centauri/fall part time/credentials.json")
 gm_auth(email='rawitner@gmail.com')
 
@@ -8,7 +9,7 @@ mssgs <- gm_messages("Conjunction Reports",num_results = 1) # get most recent em
 ids = gm_id(mssgs)
 Mn = gm_message(ids[1])
 attachments = gm_attachments(Mn)
-attachment = filter(attachments, grepl("1day", filename))
+attachment = attachments %>% filter(grepl("1day", filename))
 fname = as.character(attachment$filename)
 attachment_id = as.character(attachment$id)
 
