@@ -2,7 +2,7 @@ setwd("~/Documents/Centauri/fall part time/conjunction_analysis/")
 
 library(gmailr)
 gm_auth_configure(path = "~/Documents/Centauri/fall part time/credentials.json")
-gm_auth()
+gm_auth(email='rawitner@gmail.com')
 
 mssgs <- gm_messages("Conjunction Reports",num_results = 1) # get most recent email
 ids = gm_id(mssgs)
