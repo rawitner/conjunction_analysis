@@ -14,11 +14,11 @@ algorithms.
 See results page
 [here](https://rawitner.github.io/conjunction_analysis/).
 
-Files in this repo: - `RDSfiles`: various R data files. They are saved
-in this format to make reading and writing files faster. - `conj_data`:
+Files in this repo: -`RDSfiles`: various R data files. They are saved in
+this format to make reading and writing files faster. -`conj_data`:
 daily files that report information any time two derelicts approached
 each other within 5 km. The files start at 20OCT2019, which is when the
 new clusters were entered into the external program that generates these
-files. - `docs`: HTML files used to render [results
-page](https://rawitner.github.io/conjunction_analysis/) - `output`:
+files. -`docs`: HTML files used to render [results
+page](https://rawitner.github.io/conjunction_analysis/) -`output`:
 various image files of graphics produced over time
