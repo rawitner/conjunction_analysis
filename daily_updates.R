@@ -15,7 +15,7 @@ attachment_id = as.character(attachment$id)
 my_attachment = gm_attachment(id=attachment_id, message_id=Mn$id)
 gm_save_attachment(my_attachment, paste0("conj_data/", fname)) # my_attachment must be the actual attachment
 #### 
-
+## TEST
 
 Sys.setenv(RSTUDIO_PANDOC="/Applications/RStudio.app/Contents/MacOS/pandoc")
 
