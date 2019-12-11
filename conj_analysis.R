@@ -5,47 +5,8 @@ derelicts = readRDS("RDSfiles/derelicts")
 derelictDat = readRDS("RDSfiles/derelictDatNew")
 file_list = readRDS("RDSfiles/file_list")
 mcma_objs = readRDS("RDSfiles/mcma_objs")
-today = "4DEC2019" # update daily
+today = "10DEC2019" # update daily
 path = "conj_data/"
-
-# read in new conjunction files
-file_list_new = list.files(path)
-file_list_new = file_list_new[!(file_list_new %in% file_list)] # only the new conjunctions
-
-all_conjs_new = data.frame()
-for (i in 1:length(file_list_new)) {
-  temp_data = read_csv(paste0(path, file_list_new[i]))
-  all_conjs_new = rbind(all_conjs_new, temp_data) #for each iteration, bind the new data to the building dataset
-}
-
-for (i in 1:nrow(all_conjs_new)) {
-  clusts = sort(c(all_conjs_new$PrimaryCluster[i], all_conjs_new$SecondaryCluster[i]), decreasing = T)
-  all_conjs_new$clusters[i] = paste0(clusts[1], "-", clusts[2])
-}
-
-all_conjs_new =  all_conjs_new %>%
-  mutate(firstClust = gsub("-.*$", "", clusters),
-         secondClust = sub(".*?-", "", clusters),
-         clusterLab = if_else(firstClust=="LEO" & secondClust=="LEO", "LEO",
-                              if_else(firstClust=="LEO" & secondClust!="LEO", "LEO-other",
-                                      if_else(firstClust=="HIGH" & secondClust=="HIGH", "HIGH",
-                                              if_else(firstClust=="HIGH" & secondClust!="HIGH", 
-                                                      "HIGH-other", firstClust)))),
-         clusterLab = factor(clusterLab,
-                             levels = c("615", "775", "850", "975", "1200", "1500", "LEO","LEO-other","HIGH-other"),
-                             ordered = T))
-
-# append new conjunctions to previous
-all_conjs = rbind(all_conjs, all_conjs_new)
-saveRDS(all_conjs, "RDSfiles/all_conjs")
-file_list = append(file_list, file_list_new)
-saveRDS(file_list, "RDSfiles/file_list")
-
-# read in country codes
-country_codes = read_csv("./misc_files/country_codes.csv", 
-                         col_names = c("country", "Country"), col_types = "cc", skip = 1) %>%
-  mutate(Country = str_to_title(Country),
-         Country = if_else(str_length(Country) > 20, country, Country))
 
 ##############################################
 library(gmailr)
@@ -174,6 +135,9 @@ secondSet = all_conjs %>%
   dplyr::select(-c(PrimarySatellite, SecondarySatellite))
 
 all_conjs_expanded = rbind(firstSet, secondSet)
+saveRDS(all_conjs_expanded, "all_conjs_expanded")
+
+#### done
 
 mcma_objs = all_conjs_expanded %>%
   group_by(noradId) %>% 
