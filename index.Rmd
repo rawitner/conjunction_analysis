@@ -17,6 +17,7 @@ library(lubridate)
 library(DT)
 library(RColorBrewer)
 library(stringr)
+library(scales)
 Sys.setenv(TZ='EST')
 mcma_objs = readRDS("RDSfiles/mcma_objs")
 all_conjs = readRDS("RDSfiles/all_conjs")
@@ -144,12 +145,20 @@ all_conjs_new$numOpSats = numOpSats_v
 all_conjs_new = all_conjs_new %>%
   mutate(combinedMass = if_else( grepl(",", combinedMass, fixed = T), # if it contains a comma
                                  as.numeric(gsub(",.*", "", combinedMass)), # make substring up to the comma
-                                 as.numeric(combinedMass) )) %>% # otherwise don't change
-  mutate(risk = (combinedMass + persistence + numOpSats) / (.5*Range))
+                                 as.numeric(combinedMass) )) #%>% # otherwise don't change
+  #mutate(risk = (combinedMass + persistence + numOpSats) / (Range))
 
 # append new conjunctions to previous
 all_conjs = rbind(all_conjs, all_conjs_new)
 saveRDS(all_conjs, "RDSfiles/all_conjs") # save to RDS file
+
+all_conjs = all_conjs %>%
+  mutate(combinedMass_s = rescale(combinedMass),
+         persistence_s = rescale(persistence),
+         numOpSats_s = rescale(numOpSats),
+         Range_s = rescale(Range, to=c(1e-10, 1)),
+         risk_s = (combinedMass_s + persistence_s + numOpSats_s) / (Range_s)) #%>%
+  #arrange(desc(risk_s)) %>% View()
 
 # sum risk for each object:
 # list all conjunctions by first sat, then by second sat, then bind by rows
@@ -238,7 +247,8 @@ Using the below algorithm (with all weights equal to 1 for now-- will experiment
 ```{r top50}
 mcma_objs = all_conjs_expanded %>%
   group_by(noradId) %>% 
-  summarise(totalRisk = sum(risk)) %>%
+  #summarise(totalRisk = sum(risk)) %>%
+  summarise(totalRisk = sum(risk_s)) %>%
   right_join(select(mcma_objs, -totalRisk), by="noradId") %>% 
   mutate(totalRisk = if_else(is.na(totalRisk), 0, totalRisk))
 
