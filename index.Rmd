@@ -235,6 +235,12 @@ ggplot() +
 Using the below algorithm (with all weights equal to 1 for now-- will experiment with later): ![SMC derelicts graphic](misc_files/SMCderelicts.png)
 
 ```{r top50}
+mcma_objs = all_conjs_expanded %>%
+  group_by(noradId) %>% 
+  summarise(totalRisk = sum(risk)) %>%
+  right_join(select(mcma_objs, -totalRisk), by="noradId") %>% 
+  mutate(totalRisk = if_else(is.na(totalRisk), 0, totalRisk))
+
 top50 = mcma_objs %>% 
   arrange(desc(totalRisk)) %>%
   head(50)
