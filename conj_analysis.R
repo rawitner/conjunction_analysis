@@ -282,13 +282,13 @@ secondSet = all_conjs %>%
 all_conjs_expanded = rbind(firstSet, secondSet)
 saveRDS(all_conjs_expanded, "all_conjs_expanded")
 
-#### done
-
 mcma_objs = all_conjs_expanded %>%
   group_by(noradId) %>% 
   summarise(totalRisk = sum(risk)) %>%
   right_join(mcma_objs, by="noradId") %>% 
   mutate(totalRisk = if_else(is.na(totalRisk), 0, totalRisk))
+
+#### done
 
 mcma_objs %>% 
   arrange(desc(totalRisk)) %>%

@@ -102,7 +102,8 @@ intercept = as.numeric(model$coefficients[1])
 slope = as.numeric(model$coefficients[2])
 
 # get operational satellites
-opSats = derelictDat %>% filter(avgAlt < 2000 & operational) # df of operational sats
+opSats = derelictDat %>% filter(avgAlt < 2000 & operational)
+
 combinedMass_v = vector()
 persistence_v = vector()
 numOpSats_v = vector()
@@ -144,7 +145,7 @@ all_conjs_new = all_conjs_new %>%
   mutate(combinedMass = if_else( grepl(",", combinedMass, fixed = T), # if it contains a comma
                                  as.numeric(gsub(",.*", "", combinedMass)), # make substring up to the comma
                                  as.numeric(combinedMass) )) %>% # otherwise don't change
-  mutate(risk = (combinedMass * persistence * numOpSats) / Range)
+  mutate(risk = (combinedMass + persistence + numOpSats) / (.5*Range))
 
 # append new conjunctions to previous
 all_conjs = rbind(all_conjs, all_conjs_new)
@@ -240,6 +241,8 @@ mcma_objs = all_conjs_expanded %>%
   summarise(totalRisk = sum(risk)) %>%
   right_join(select(mcma_objs, -totalRisk), by="noradId") %>% 
   mutate(totalRisk = if_else(is.na(totalRisk), 0, totalRisk))
+
+saveRDS(mcma_objs, "RDSfiles/mcma_objs") # save to RDS file
 
 top50 = mcma_objs %>% 
   arrange(desc(totalRisk)) %>%
