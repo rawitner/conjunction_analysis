@@ -9,9 +9,154 @@ today = "10DEC2019" # update daily
 path = "conj_data/"
 
 ##############################################
-library(gmailr)
-my_threads <- gm_threads(num_results = 10)
+temp_data = read_csv("conj_data/AllClusters_1day_11DEC2019.csv", skip=1,
+                     col_names = c("PrimarySatellite","SecondarySatellite","TCA_EpDay",
+                                   "TCA_UTCG","Range","RangeX","RangeY","RangeZ","Velocity",
+                                   "VelocityX","VelocityY","VelocityZ","Latitude","Longitude",
+                                   "Altitude","PrimaryAge","SecondaryAge","PrimaryCluster",
+                                   "SecondaryCluster","DateGenerated","del"),
+                     col_types = "ccncnnnnnnnnnnncccccc") %>%
+  select(-del)
 
+firstLine = readLines("conj_data/AllClusters_1day_10DEC2019.csv", n=2)[2]
+str_count(firstLine, ',')
+
+firstLine = readLines("conj_data/AllClusters_1day_11DEC2019.csv", n=2)[2]
+str_count(firstLine, ',') == 20
+
+colnames = c("PrimarySatellite","SecondarySatellite","TCA_EpDay",
+             "TCA_UTCG","Range","RangeX","RangeY","RangeZ","Velocity",
+             "VelocityX","VelocityY","VelocityZ","Latitude","Longitude",
+             "Altitude","PrimaryAge","SecondaryAge","PrimaryCluster",
+             "SecondaryCluster","DateGenerated","del")
+
+all_conjs_new = data.frame()
+for (i in 1:length(file_list)) {
+  file = paste0(path, file_list[i])
+  print(file)
+  
+  firstLine = readLines(file, n=2)[2]
+  
+  if (str_count(firstLine, ',') == 20) { # if file has trailing commas
+    temp_data = read_csv(file, skip=1, col_names = colnames, col_types = "ccncnnnnnnnnnnncccccc") %>%
+      select(-del)
+  } else {
+    temp_data = read_csv(file, skip=1, col_names = colnames[-length(colnames)], col_types = "ccncnnnnnnnnnnnccccc")
+  }
+  
+  all_conjs_new = rbind(all_conjs_new, temp_?padata) #for each iteration, bind the new data to the building dataset
+}
+
+mycols <- '(PrimaryCluster, SecondaryCluster)'
+minf <- paste0('min',mycols)
+maxf <- paste0('max',mycols)
+
+all_conjs_new = all_conjs_new %>%
+  mutate(DateGenerated = parse_date_time(DateGenerated, tz="EST", 
+                                   orders=c("%Y-%m-%d %H:%M:%S", "%m/%d/%y %H:%M")),
+         date = DateGenerated - 24*60*60,
+         utcg = if_else(nchar(TCA_UTCG) > 7,
+                        as.POSIXct(TCA_UTCG, format="%Y-%m-%d %H:%M:%S"),
+                        date + TCA_EpDay*24*60*60),
+         TCA_UTCG = utcg) %>% 
+  select(-c(date, utcg)) %>%
+  rowwise() %>% 
+  mutate(firstClust = eval(parse(text=minf)),
+         secondClust = eval(parse(text=maxf)),
+         clusters = paste(firstClust, secondClust, sep="-")) %>% 
+  ungroup() %>%
+  mutate(clusterLab = if_else(firstClust=="LEO" & secondClust=="LEO", "LEO",
+                              if_else(secondClust=="LEO" & firstClust!="LEO", "LEO-other",
+                                      if_else(firstClust=="HIGH" & secondClust=="HIGH", "HIGH",
+                                              if_else(firstClust=="HIGH" & secondClust!="HIGH", 
+                                                      "HIGH-other", firstClust)))),
+         clusterLab = factor(clusterLab,
+                             levels = c("615", "775", "850", "975", "1200", "1500", "LEO","LEO-other","HIGH-other"),
+                             ordered = T))
+
+# update file list
+file_list = append(file_list, file_list_new)
+saveRDS(file_list, "RDSfiles/file_list")
+
+######################
+# WORST OFFENDER alg for new conjunctions
+# persistence
+alts = c(775,850,975,1500)
+pers = c(300,500,1800,20000)
+persistence = cbind(alts, pers) %>% as_tibble()
+model = lm(log(pers) ~ alts, persistence)
+intercept = as.numeric(model$coefficients[1])
+slope = as.numeric(model$coefficients[2])
+
+# get operational satellites
+opSats = derelictDat %>% filter(avgAlt < 2000 & operational) # df of operational sats
+
+combinedMass_v = vector()
+persistence_v = vector()
+numOpSats_v = vector()
+for (i in 1:nrow(all_conjs_new)) {
+  conj = all_conjs_new[i, ]
+  noradId1 = gsub("--.*", "", conj$PrimarySatellite)
+  noradId2 = gsub("--.*", "", conj$SecondarySatellite)
+  obj1 = filter(mcma_objs, noradId == noradId1)
+  obj2 = filter(mcma_objs, noradId == noradId2)
+  
+  combinedMass = as.numeric(obj1$mass) + as.numeric(obj2$mass)
+  persistence = exp(intercept + slope * conj$Altitude)
+  
+  numOpSats = 0
+  for (j in 1:nrow(opSats)) {
+    # count how many op sats overlap in altitude
+    opSat = opSats[j,]
+    conjMinAlt = conj$Altitude - 100
+    conjMaxAlt = conj$Altitude + 100
+    if ((opSat$perigee > conjMinAlt &
+         opSat$apogee < conjMaxAlt) ||
+        (opSat$perigee < conjMaxAlt &
+         opSat$apogee > conjMaxAlt) ||
+        (opSat$perigee < conjMinAlt &
+         opSat$apogee > conjMinAlt)) {
+      numOpSats = numOpSats + 1
+    }
+  }
+  
+  combinedMass_v = append(combinedMass_v, toString(combinedMass))
+  persistence_v = append(persistence_v, persistence)
+  numOpSats_v = append(numOpSats_v, numOpSats)
+}
+all_conjs_new$combinedMass = combinedMass_v
+all_conjs_new$persistence = persistence_v
+all_conjs_new$numOpSats = numOpSats_v
+
+all_conjs_new = all_conjs_new %>%
+  mutate(combinedMass = if_else( grepl(",", combinedMass, fixed = T), # if it contains a comma
+                                 as.numeric(gsub(",.*", "", combinedMass)), # make substring up to the comma
+                                 as.numeric(combinedMass) )) %>% # otherwise don't change
+  mutate(risk = (combinedMass * persistence * numOpSats) / Range)
+
+# fix the one missing combined mass...
+all_conjs_new$combinedMass[all_conjs_new$SecondarySatellite == "27430--HAIYANG 1"] = 360 + 750
+
+##### SAVE
+all_conjs = all_conjs_new
+saveRDS(all_conjs, "RDSfiles/all_conjs")
+
+# append new conjunctions to previous
+all_conjs = rbind(all_conjs, all_conjs_new)
+saveRDS(all_conjs, "RDSfiles/all_conjs")
+
+# sum risk for each object:
+# list all conjunctions by first sat, then by second sat, then bind by rows
+firstSet = all_conjs %>%
+  mutate(noradId = as.numeric(gsub("--.*", "", PrimarySatellite))) %>%
+  dplyr::select(-c(PrimarySatellite, SecondarySatellite))
+
+secondSet = all_conjs %>%
+  mutate(noradId = as.numeric(gsub("--.*", "", SecondarySatellite))) %>%
+  dplyr::select(-c(PrimarySatellite, SecondarySatellite))
+
+all_conjs_expanded = rbind(firstSet, secondSet)
+saveRDS(all_conjs_expanded, "RDSfiles/all_conjs_expanded")
 
 ############################################
 # plot percent of encounters by country
