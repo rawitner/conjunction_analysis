@@ -153,10 +153,10 @@ all_conjs = rbind(all_conjs, all_conjs_new)
 saveRDS(all_conjs, "RDSfiles/all_conjs") # save to RDS file
 
 all_conjs = all_conjs %>%
-  mutate(combinedMass_s = rescale(combinedMass),
-         persistence_s = rescale(persistence),
-         numOpSats_s = rescale(numOpSats),
-         Range_s = rescale(Range, to=c(1e-4, 1)),
+  mutate(combinedMass_s = rescale(combinedMass, to=c(1e-4,100)),
+         persistence_s = rescale(persistence, to=c(1e-4,100)),
+         numOpSats_s = rescale(numOpSats, to=c(1e-4,50)),
+         Range_s = rescale(Range, to=c(1e-4, 100)),
          risk_s = (combinedMass_s + persistence_s + numOpSats_s) / (Range_s)) #%>%
   #arrange(desc(risk_s)) %>% View()
 
