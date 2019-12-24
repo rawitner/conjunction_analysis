@@ -137,6 +137,9 @@ all_conjs_new = all_conjs_new %>%
 # fix the one missing combined mass...
 all_conjs_new$combinedMass[all_conjs_new$SecondarySatellite == "27430--HAIYANG 1"] = 360 + 750
 
+# fix one mass
+#mcma_objs$mass[mcma_objs$noradId == 43656] = 2000
+
 ##### SAVE
 all_conjs = all_conjs_new
 saveRDS(all_conjs, "RDSfiles/all_conjs")
