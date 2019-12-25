@@ -171,8 +171,11 @@ all_conjs = all_conjs %>%
          combinedMass_s = rescale(combinedMass, to=c(0,100)),
          persistence_s = rescale(persistence, to=c(0,100)),
          numOpSats_s = rescale(numOpSats, to=c(0,100)),
-         Range_s = 10^(Range), #Range, #rescale(Range, to=c(1e-4, 100)),
+         Range_s = 10^(Range), #rescale(Range, to=c(1e-4, 100)),
          risk_s = (combinedMass_s + persistence_s + numOpSats_s) / (Range_s)) #%>%
+
+# we need some kind of exponential scale for range where a 50m miss is 100x more risky
+# than a 500m miss...
 
 # sum risk for each object:
 # list all conjunctions by first sat, then by second sat, then bind by rows
