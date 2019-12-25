@@ -50,13 +50,16 @@ for (i in 1:length(file_list_new)) {
   firstLine = readLines(file, n=2)[2]
   
   if (str_count(firstLine, ',') == 20) { # if file has trailing commas
-    temp_data = read_csv(file, skip=1, col_names = colnames, col_types = "ccncnnnnnnnnnnncccccc") %>%
+    temp_data = read_csv(file, skip=1, col_names = colnames, 
+                         col_types = "ccncnnnnnnnnnnncccccc") %>%
       select(-del)
   } else {
-    temp_data = read_csv(file, skip=1, col_names = colnames[-length(colnames)], col_types = "ccncnnnnnnnnnnnccccc")
+    temp_data = read_csv(file, skip=1, 
+                         col_names = colnames[-length(colnames)], 
+                         col_types = "ccncnnnnnnnnnnnccccc")
   }
   
-  all_conjs_new = rbind(all_conjs_new, temp_?padata) #for each iteration, bind the new data to the building dataset
+  all_conjs_new = rbind(all_conjs_new, temp_data) #for each iteration, bind the new data to the building dataset
 }
 
 mycols <- '(PrimaryCluster, SecondaryCluster)'
@@ -143,22 +146,33 @@ all_conjs_new$persistence = persistence_v
 all_conjs_new$numOpSats = numOpSats_v
 
 all_conjs_new = all_conjs_new %>%
-  mutate(combinedMass = if_else( grepl(",", combinedMass, fixed = T), # if it contains a comma
+  mutate(combinedMass = if_else(grepl(",", combinedMass, fixed = T), # if it contains a comma
                                  as.numeric(gsub(",.*", "", combinedMass)), # make substring up to the comma
                                  as.numeric(combinedMass) )) #%>% # otherwise don't change
   #mutate(risk = (combinedMass + persistence + numOpSats) / (Range))
 
-# append new conjunctions to previous
-all_conjs = rbind(all_conjs, all_conjs_new)
-saveRDS(all_conjs, "RDSfiles/all_conjs") # save to RDS file
-
-all_conjs = all_conjs %>%
-  mutate(combinedMass_s = rescale(combinedMass, to=c(1e-4,100)),
+all_conjs_new = all_conjs_new %>%
+  mutate(risk = (combinedMass + persistence + numOpSats) / Range,
+         combinedMass_s = rescale(combinedMass, to=c(1e-4,100)),
          persistence_s = rescale(persistence, to=c(1e-4,100)),
          numOpSats_s = rescale(numOpSats, to=c(1e-4,50)),
          Range_s = rescale(Range, to=c(1e-4, 100)),
          risk_s = (combinedMass_s + persistence_s + numOpSats_s) / (Range_s)) #%>%
   #arrange(desc(risk_s)) %>% View()
+
+
+# append new conjunctions to previous
+all_conjs = rbind(all_conjs, all_conjs_new)
+saveRDS(all_conjs, "RDSfiles/all_conjs") # save to RDS file
+
+# adjust scaling
+all_conjs = all_conjs %>%
+  mutate(risk = (combinedMass + persistence + numOpSats) / Range,
+         combinedMass_s = rescale(combinedMass, to=c(0,100)),
+         persistence_s = rescale(persistence, to=c(0,100)),
+         numOpSats_s = rescale(numOpSats, to=c(0,100)),
+         Range_s = 10^(Range), #Range, #rescale(Range, to=c(1e-4, 100)),
+         risk_s = (combinedMass_s + persistence_s + numOpSats_s) / (Range_s)) #%>%
 
 # sum risk for each object:
 # list all conjunctions by first sat, then by second sat, then bind by rows
@@ -173,32 +187,45 @@ secondSet = all_conjs %>%
 # append new conjunctions to previous
 all_conjs_expanded = rbind(firstSet, secondSet)
 saveRDS(all_conjs_expanded, "RDSfiles/all_conjs_expanded") # save to RDS file
-
 ```
 
 ## Miss distance vs cumulative count plot
 ```{r miss_dist_cum_count_plot}
 # axis ticks for log scale
-ticks <- 1:10
-ooms <- 10^(0:3) # define orders of magnitudes
-breaks <- as.vector(ticks %o% ooms)
+#ticks <- 1:10
+#ooms <- 10^(0:3) # define orders of magnitudes
+#breaks <- as.vector(ticks %o% ooms)
+#breaks = c(1,2,3,4,5,6,7,8,9,10,20,30,40,
+#           50,60,708,090,100,200,300,400,500,600,700,800,
+#           900,1000,2000,3000,4000,5000,6000,7000,8000,9000,10000)
 
-show.labels <- c(T, F, F, F, T, F, T, F)
-labels <- as.character(breaks * show.labels)
-labels <- gsub("^0$", "", labels)
+#show.labels <- c(T, F, F, T, F, F, T, F)
+#labels <- as.character(breaks * show.labels)
+#labels <- gsub("^0$", "", labels)
 
 all_conjs %>%
+  mutate(Range = Range * 1000) %>%
   group_by(clusterLab) %>%
   arrange(Range) %>%
   mutate(rowid = 1, cumnum = cumsum(rowid)) %>% 
-  ggplot(aes(x=Range, y = cumnum, color=clusterLab)) + 
+  ggplot(aes(x=Range, y = cumnum, color=clusterLab, linetype=clusterLab)) + 
   geom_line() +
   theme_light() +
-  scale_x_log10(labels = labels, breaks = breaks) +
-  scale_y_log10(labels = labels, breaks = breaks) +
-  labs(x="Miss Distance (km)", y="Cumulative Number of Encounters", color="Cluster",
-       title="Cumulative Number of Encounters by Cluster", subtitle = paste0("Encounters from 20OCT2019-", today))+
-  scale_color_brewer(palette="Set1")
+  scale_x_log10(labels = c(10,100,300,500,1000,5000), 
+                breaks = c(10,100,300,500,1000, 5000)) +
+  scale_y_log10(labels = c(10,100,300,500,1000,3000,5000), 
+                breaks = c(10,100,300,500,1000,3000,5000)) +
+  labs(x="Miss Distance (m)", y="Cumulative Number of Encounters", #color="Cluster",
+       title="Cumulative Number of Encounters by Cluster", 
+       subtitle = paste0("Encounters from 20OCT2019-", today))+
+  scale_color_brewer(palette="Set1")+
+  #scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
+  #              labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  #scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
+  #              labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  annotation_logticks()+
+  scale_linetype_manual(values=c("dashed", "solid", "solid", "solid",
+                                 "solid", "solid", "solid", "solid"))
 ```
 
 ## Percent of Encounters by Country
@@ -252,12 +279,11 @@ mcma_objs = all_conjs_expanded %>%
   right_join(select(mcma_objs, -totalRisk), by="noradId") %>% 
   mutate(totalRisk = if_else(is.na(totalRisk), 0, totalRisk))
 
-saveRDS(mcma_objs, "RDSfiles/mcma_objs") # save to RDS file
+#saveRDS(mcma_objs, "RDSfiles/mcma_objs") # save to RDS file
 
 top50 = mcma_objs %>% 
   arrange(desc(totalRisk)) %>%
   head(50)
-
 
 top50 = all_conjs_expanded %>%
   filter(noradId %in% top50$noradId) %>%
