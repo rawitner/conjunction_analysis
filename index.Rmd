@@ -29,7 +29,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files, eval=F}
+```{r update_conj_files}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
@@ -81,15 +81,15 @@ all_conjs_new = all_conjs_new %>%
          clusters = paste(firstClust, secondClust, sep="-")) %>% 
   ungroup() %>%
   mutate(clusterLab = if_else(firstClust=="LEO" & secondClust=="LEO", "LEO",
-                              if_else(secondClust=="LEO" & firstClust!="LEO", "LEO-other",
+                              if_else((firstClust=="LEO" & secondClust!="LEO") |
+                                        (firstClust!="LEO" & secondClust=="LEO"), "LEO-other",
                                       if_else(firstClust=="HIGH" & secondClust=="HIGH", "HIGH",
-                                              if_else(firstClust=="HIGH" & secondClust!="HIGH", 
-                                                      "HIGH-other", firstClust)))),
+                                              if_else((firstClust=="HIGH" & secondClust!="HIGH") | 
+                                                        (firstClust!="HIGH" & secondClust=="HIGH"), "HIGH-other",
+                                                      firstClust)))),
          clusterLab = factor(clusterLab,
-                             levels = c("615", "775", "850", "975", "1200", "1500", "LEO","LEO-other","HIGH-other"),
+                             levels = c("615", "775", "850", "975", "1200", "1500", "LEO","LEO-other","HIGH","HIGH-other"),
                              ordered = T))
-
-
 
 # update file list
 file_list = append(file_list, file_list_new)
@@ -174,6 +174,18 @@ all_conjs = all_conjs %>%
          Range_s = 10^(Range), #rescale(Range, to=c(1e-4, 100)),
          risk_s = (combinedMass_s + persistence_s + numOpSats_s) / (Range_s)) #%>%
 
+# all_conjs = all_conjs %>% 
+#   mutate(clusterLab = if_else(firstClust=="LEO" & secondClust=="LEO", "LEO",
+#                               if_else((firstClust=="LEO" & secondClust!="LEO") |
+#                                         (firstClust!="LEO" & secondClust=="LEO"), "LEO-other",
+#                                       if_else(firstClust=="HIGH" & secondClust=="HIGH", "HIGH",
+#                                               if_else((firstClust=="HIGH" & secondClust!="HIGH") | 
+#                                                         (firstClust!="HIGH" & secondClust=="HIGH"), "HIGH-other",
+#                                                       firstClust)))),
+#          clusterLab = factor(clusterLab,
+#                              levels = c("615", "775", "850", "975", "1200", "1500", "LEO","LEO-other","HIGH","HIGH-other"),
+#                              ordered = T))
+
 # we need some kind of exponential scale for range where a 50m miss is 100x more risky
 # than a 500m miss...
 
@@ -206,6 +218,8 @@ saveRDS(all_conjs_expanded, "RDSfiles/all_conjs_expanded") # save to RDS file
 #labels <- as.character(breaks * show.labels)
 #labels <- gsub("^0$", "", labels)
 
+mycolors = c(brewer.pal(name="Set1", n = 8), brewer.pal(name="Set2", n = 1))
+
 all_conjs %>%
   mutate(Range = Range * 1000) %>%
   group_by(clusterLab) %>%
@@ -221,14 +235,15 @@ all_conjs %>%
   labs(x="Miss Distance (m)", y="Cumulative Number of Encounters", #color="Cluster",
        title="Cumulative Number of Encounters by Cluster", 
        subtitle = paste0("Encounters from 20OCT2019-", today))+
-  scale_color_brewer(palette="Set1")+
+  #scale_color_brewer(palette="Set1")+
+  scale_color_manual(values = mycolors)+
   #scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
   #              labels = scales::trans_format("log10", scales::math_format(10^.x)))+
   #scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
   #              labels = scales::trans_format("log10", scales::math_format(10^.x)))+
   annotation_logticks()+
   scale_linetype_manual(values=c("dashed", "solid", "solid", "solid",
-                                 "solid", "solid", "solid", "solid"))
+                                 "solid", "solid", "solid", "solid", "dashed"))
 ```
 
 ## Percent of Encounters by Country
