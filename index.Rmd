@@ -45,7 +45,7 @@ colnames = c("PrimarySatellite","SecondarySatellite","TCA_EpDay",
 all_conjs_new = data.frame()
 for (i in 1:length(file_list_new)) {
   file = paste0(path, file_list_new[i])
-  print(file)
+  #print(file)
   
   firstLine = readLines(file, n=2)[2]
   
