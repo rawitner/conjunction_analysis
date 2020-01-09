@@ -29,7 +29,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files}
+```{r update_conj_files, eval=F}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
@@ -218,7 +218,8 @@ saveRDS(all_conjs_expanded, "RDSfiles/all_conjs_expanded") # save to RDS file
 #labels <- as.character(breaks * show.labels)
 #labels <- gsub("^0$", "", labels)
 
-mycolors = c(brewer.pal(name="Set1", n = 8), brewer.pal(name="Set2", n = 1))
+mycolors = c(brewer.pal(name="Set1", n = 8), brewer.pal(name="Set2", n = 3))
+mycolors[6] = "#000000"
 
 all_conjs %>%
   mutate(Range = Range * 1000) %>%
@@ -256,22 +257,26 @@ country_codes = read_csv("./misc_files/country_codes.csv",
          Country = if_else(str_length(Country) > 20, country, Country))
 
 # plot percent of encounters by country
-p = all_conjs %>%
-  mutate(noradId = as.numeric(gsub("--.*$", "", PrimarySatellite ))) %>%
+p = all_conjs_expanded %>%
+  #mutate(noradId = as.numeric(gsub("--.*$", "", PrimarySatellite ))) %>%
   left_join(dplyr::select(mcma_objs, c(noradId, country)), by="noradId") %>%
-  mutate(country = if_else(country == "CHBZ", "PRC", country)) %>%
+  mutate(country = if_else(country == "CHBZ", "PRC", country),
+         country = replace_na(country, "Other")) %>% 
   group_by(clusterLab, country) %>% 
-  summarise(numEncounters = n()) %>%
+  summarise(numEncounters = n()) %>% 
   left_join(country_codes, by="country") %>% 
   group_by(clusterLab) %>%
   mutate(encountersPerClust = sum(numEncounters), 
          p = numEncounters / encountersPerClust * 100) %>%
   group_by(clusterLab) %>%
-  mutate(country_new = if_else(p < 2, "Other", Country)) %>% 
-  mutate(p = if_else(country_new=="Other", mean(p[country_new=="Other"]), p))
-
-colourCount = length(unique(p$country_new))
-getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+  mutate(country_new = if_else(Country %in% c("CIS", "US", "China", "ESA", "France", "Germany", "India", "Japan"), Country, "Other")) %>% 
+  group_by(clusterLab, country_new) %>%
+  summarise(p = sum(p),
+            encountersPerClust = round(min(encountersPerClust)/2)) %>%
+  mutate(country_new = factor(country_new, 
+                              levels = c("CIS", "US", "China", "ESA", "France", 
+                                         "Germany", "India", "Japan", "Other"), 
+                              ordered=T))
 
 ggplot() + 
   geom_bar(data = p, aes(x=clusterLab, y=p/100, group=country_new, fill=country_new), stat="identity")+
@@ -279,7 +284,7 @@ ggplot() +
             aes(x=clusterLab, y=1, label=encountersPerClust))+
   theme_minimal() +
   scale_y_continuous(labels = scales::percent) + 
-  scale_fill_manual(values = getPalette(colourCount))+
+  scale_fill_brewer(palette = "Set1")+
   labs(x="Cluster",y="", title = "Percent of Encounters by Country", fill="Country",
        subtitle="Number of encounters shown above each bar", caption=paste0("Encounters from 20OCT2019-", today))
 ```
@@ -353,13 +358,47 @@ mcma_objs %>% group_by(cluster_new) %>%
                              levels = c("cc615", "cc775", "cc850", "cc975", "cc1200", "cc1500", "cleo","CHIGH"),
                              ordered = T))%>%
   ggplot(aes(x=1, y=p, fill=cluster_new)) +
-  geom_col(width = .5)+
-  geom_text(position = position_stack(vjust=.5), 
+  geom_col(width = .2)+
+  geom_text(position = position_stack(vjust=0.5), 
             aes(label=paste0(round(p), "%")))+
   theme_minimal()+
   theme(axis.title.x = element_blank(), axis.text = element_blank(), 
         panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  labs(fill="Cluster", y="Risk")
+  labs(fill="Cluster", y="Risk")+
+  scale_fill_brewer(type = "qual")
 ```
 
-## Worst offender analysis-- Method 2 (Darren's method)
+## Worst offender analysis--Method 2
+
+The second method for calculating the top 50 statistically most concerning objects also uses the idea that risk = probability * consequence, although it slightly differs from the first method in what components make up probability and consequence.
+
+Probability:
+
+- CR = annual collision rate of each cluster
+- AR = cross-sectional area ($\frac{area~of~object}{10}$)
+- E1 = number of encounters < 1km per year
+- E.5 = number of encounters < 0.5km per year
+
+Consequence:
+
+- MF = mass of object (proportional to amount of debris produced)
+- DF = $\frac{atmospheric~density ~(AD) ~at~ 500km}{AD ~at ~object's ~avg. ~altitude}$
+- SF = spatial density of operational satellites 
+
+Then for each object, the risk is calculated as:
+$$Risk = [CR * AR * {E1 * (2 * E.5)}] * [MF * DF * SF]$$
+
+```{r}
+all_conjs_expanded %>% 
+  group_by(noradId) %>%
+  summarise(numtot = length(Range),
+            num1 = length(Range[Range<=1]),
+            num.5 = length(Range[Range<=0.5])) %>%
+  right_join(mcma_objs, by="noradId") %>% 
+  mutate(numtot = replace_na(numtot, 0),
+         num1 = replace_na(num1, 0),
+         num.5 = replace_na(num.5, 0)) #%>%
+  #View()
+
+```
+
