@@ -258,7 +258,6 @@ country_codes = read_csv("./misc_files/country_codes.csv",
 
 # plot percent of encounters by country
 p = all_conjs_expanded %>%
-  #mutate(noradId = as.numeric(gsub("--.*$", "", PrimarySatellite ))) %>%
   left_join(dplyr::select(mcma_objs, c(noradId, country)), by="noradId") %>%
   mutate(country = if_else(country == "CHBZ", "PRC", country),
          country = replace_na(country, "Other")) %>% 
@@ -285,7 +284,39 @@ ggplot() +
   theme_minimal() +
   scale_y_continuous(labels = scales::percent) + 
   scale_fill_brewer(palette = "Set1")+
-  labs(x="Cluster",y="", title = "Percent of Encounters by Country", fill="Country",
+  labs(x="Cluster",y="", title = "Percent of Encounters by Country - misses within 5 km", fill="Country",
+       subtitle="Number of encounters shown above each bar", caption=paste0("Encounters from 20OCT2019-", today))
+```
+```{r barchart500m, fig.width=7.5}
+p = all_conjs_expanded %>%
+  filter(Range <= 0.5) %>%
+  left_join(dplyr::select(mcma_objs, c(noradId, country)), by="noradId") %>%
+  mutate(country = if_else(country == "CHBZ", "PRC", country),
+         country = replace_na(country, "Other")) %>% 
+  group_by(clusterLab, country) %>% 
+  summarise(numEncounters = n()) %>% 
+  left_join(country_codes, by="country") %>% 
+  group_by(clusterLab) %>%
+  mutate(encountersPerClust = sum(numEncounters), 
+         p = numEncounters / encountersPerClust * 100) %>%
+  group_by(clusterLab) %>%
+  mutate(country_new = if_else(Country %in% c("CIS", "US", "China", "ESA", "France", "Germany", "India", "Japan"), Country, "Other")) %>% 
+  group_by(clusterLab, country_new) %>%
+  summarise(p = sum(p),
+            encountersPerClust = round(min(encountersPerClust)/2)) %>%
+  mutate(country_new = factor(country_new, 
+                              levels = c("CIS", "US", "China", "ESA", "France", 
+                                         "Germany", "India", "Japan", "Other"), 
+                              ordered=T))
+
+ggplot() + 
+  geom_bar(data = p, aes(x=clusterLab, y=p/100, group=country_new, fill=country_new), stat="identity")+
+  geom_text(data = unique(dplyr::select(p, c(clusterLab, encountersPerClust))), position = position_stack(vjust=1.05), 
+            aes(x=clusterLab, y=1, label=encountersPerClust))+
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent) + 
+  scale_fill_brewer(palette = "Set1")+
+  labs(x="Cluster",y="", title = "Percent of Encounters by Country - misses within 500 m", fill="Country",
        subtitle="Number of encounters shown above each bar", caption=paste0("Encounters from 20OCT2019-", today))
 ```
 
@@ -350,7 +381,7 @@ top50 %>% dplyr::select(cols_ordered) %>%
 ### Risk among all objects
 Among all objects, percent of risk accounted for by each cluster
 
-```{r risk_plot}
+```{r risk_plot, fig.width=4}
 mcma_objs %>% group_by(cluster_new) %>%
   summarise(p = n()) %>% 
   mutate(p = p/nrow(mcma_objs)*100,
@@ -375,18 +406,23 @@ The second method for calculating the top 50 statistically most concerning objec
 Probability:
 
 - CR = annual collision rate of each cluster
+  * Each cluster of massive derelicts has an annual collision rate
 - AR = cross-sectional area ($\frac{area~of~object}{10}$)
-- E1 = number of encounters < 1km per year
-- E.5 = number of encounters < 0.5km per year
+  * The larger cross-sectional area, the larger the likelihood of colliding
+- E1 = number of encounters < 1 km per year
+- E.5 = number of encounters < 0.5 km per year
 
 Consequence:
 
-- MF = mass of object (proportional to amount of debris produced)
-- DF = $\frac{atmospheric~density ~(AD) ~at~ 500km}{AD ~at ~object's ~avg. ~altitude}$
-- SF = spatial density of operational satellites 
+- MF = $\frac{mass~of~object}{9000}$
+  * Mass is proportional to the amount of debris produced (mass ranges from 700-9000 kg)
+- DF = $\frac{atmospheric~density ~at~ 500~km}{atmospheric~density~at ~object's ~avg. ~altitude}$ 
+  * There's a higher consequence for debris that linger for a longer amount of time, and orbital lifetime of resulting debris is proportional to atmospheric density (which decreases exponentially with increasing altitude).
+- SD = spatial density of operational satellites
+  * Consequence is higher when there are more operational satellites in the vacinity.
 
 Then for each object, the risk is calculated as:
-$$Risk = [CR * AR * {E1 * (2 * E.5)}] * [MF * DF * SF]$$
+$$Risk = [CR * AR * {E1 * (2 * E.5)}] * [MF * DF * SD]$$
 
 ```{r}
 all_conjs_expanded %>% 
@@ -395,9 +431,10 @@ all_conjs_expanded %>%
             num1 = length(Range[Range<=1]),
             num.5 = length(Range[Range<=0.5])) %>%
   right_join(mcma_objs, by="noradId") %>% 
-  mutate(numtot = replace_na(numtot, 0),
-         num1 = replace_na(num1, 0),
-         num.5 = replace_na(num.5, 0)) #%>%
+  mutate(E_tot = replace_na(numtot, 0),
+         E1 = replace_na(num1, 0),
+         E.5 = replace_na(num.5, 0),
+         AR = ) #%>%
   #View()
 
 ```
