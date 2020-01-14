@@ -407,34 +407,55 @@ Probability:
 
 - CR = annual collision rate of each cluster
   * Each cluster of massive derelicts has an annual collision rate
-- AR = cross-sectional area ($\frac{area~of~object}{10}$)
+- AR = cross-sectional area of object (estimated by multiplying mass by 0.0005)
   * The larger cross-sectional area, the larger the likelihood of colliding
+- E5 = number of encounters < 5 km per year
 - E1 = number of encounters < 1 km per year
-- E.5 = number of encounters < 0.5 km per year
 
 Consequence:
 
-- MF = $\frac{mass~of~object}{9000}$
+- MF = $\frac{mass~of~object}{1500}$
   * Mass is proportional to the amount of debris produced (mass ranges from 700-9000 kg)
+  * Divide by 1500 so that objects below 1500 kg bring risk down while larger masses increase risk
 - DF = $\frac{atmospheric~density ~at~ 500~km}{atmospheric~density~at ~object's ~avg. ~altitude}$ 
   * There's a higher consequence for debris that linger for a longer amount of time, and orbital lifetime of resulting debris is proportional to atmospheric density (which decreases exponentially with increasing altitude).
 - SD = spatial density of operational satellites
   * Consequence is higher when there are more operational satellites in the vacinity.
 
 Then for each object, the risk is calculated as:
-$$Risk = [CR * AR * {E1 * (2 * E.5)}] * [MF * DF * SD]$$
+$$Risk = [CR * AR * {E5/25 * (5 * E1)}] * [MF * DF * SD]$$
+```{r numOpSatsVec, eval=F}
+# numOpSatsVec contains number of op sats that cross paths with each object's path
+numOpSatsVec = vector()
+for (i in 1:nrow(mcma_objs)){
+  row = mcma_objs[i,]
+  minAlt = row$perigee
+  maxAlt = row$apogee
+  numOpSats = 0
+  for (j in 1:nrow(opSats)){
+    opSat = opSats[j,]
+    if ((opSat$perigee > minAlt & opSat$apogee < maxAlt) ||
+      (opSat$perigee < maxAlt & opSat$apogee > maxAlt) ||
+      (opSat$perigee < minAlt & opSat$apogee > minAlt)) {
+    numOpSats = numOpSats + 1
+    }
+  }
+  numOpSatsVec = append(numOpSatsVec, numOpSats)
+}
+
+mcma_objs$numOpSats = numOpSatsVec
+```
+
 
 ```{r}
-all_conjs_expanded %>% 
+a = all_conjs_expanded %>% 
   group_by(noradId) %>%
-  summarise(numtot = length(Range),
-            num1 = length(Range[Range<=1]),
-            num.5 = length(Range[Range<=0.5])) %>%
+  summarise(E5 = length(Range),
+            E1 = length(Range[Range <= 1])) %>%
   right_join(mcma_objs, by="noradId") %>% 
-  mutate(E_tot = replace_na(numtot, 0),
-         E1 = replace_na(num1, 0),
-         E.5 = replace_na(num.5, 0),
-         AR = ) #%>%
+  mutate(E5 = replace_na(E5, 0),
+         E1 = replace_na(E1, 0),
+         AR = .0005 * as.numeric(mass))# %>%
   #View()
 
 ```
