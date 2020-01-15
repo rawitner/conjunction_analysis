@@ -383,9 +383,11 @@ top50 %>% dplyr::select(cols_ordered) %>%
 Among all objects, percent of risk accounted for by each cluster
 
 ```{r risk_plot, fig.width=4}
+totRisk = mcma_objs %>% summarise(totRisk = sum(totalRisk)) %>% pull()
+
 mcma_objs %>% group_by(cluster_new) %>%
-  summarise(p = n()) %>% 
-  mutate(p = p/nrow(mcma_objs)*100,
+  summarise(p = sum(totalRisk)) %>% 
+  mutate(p = p/totRisk*100,
          cluster_new = factor(cluster_new,
                              levels = c("cc615", "cc775", "cc850", "cc975", "cc1200", "cc1500", "cleo","CHIGH"),
                              ordered = T))%>%
@@ -574,13 +576,15 @@ SMC_out %>%
 ```
 
 Percent of risk accounted for by each cluster among all objects:
+
 ```{r risk_plot_2, fig.width=4}
+totRisk = SMC_out %>% summarise(totRisk = sum(SMC_risk)) %>% pull()
+
 SMC_out %>% group_by(cluster_new) %>%
-  summarise(p = n()) %>% 
-  mutate(p = p/nrow(mcma_objs)*100,
-         cluster_new = factor(cluster_new,
-                             levels = c("cc615", "cc775", "cc850", "cc975", "cc1200", "cc1500", "cleo","CHIGH"),
-                             ordered = T))%>%
+  #summarise(p = n()) %>% 
+  summarise(p = sum(SMC_risk)) %>% 
+  mutate(p = p/totRisk*100,
+         cluster_new = factor(cluster_new, levels = c("cc615", "cc775", "cc850", "cc975", "cc1200", "cc1500", "cleo","CHIGH"), ordered = T)) %>%
   ggplot(aes(x=1, y=p, fill=cluster_new)) +
   geom_col(width = .2)+
   geom_text(position = position_stack(vjust=0.5), 
