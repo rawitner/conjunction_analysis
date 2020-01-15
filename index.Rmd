@@ -538,13 +538,14 @@ cluster_summary = all_conjs_expanded %>%
 
 ```
 
+Top 50 statistically most concerning objects:
 
 ```{r getSMC}
 cols_ordered = c("noradId", "cluster_new","SMC_risk", "E5", "E1", "spatDens", "df", "AR", "MF","velocity","SD","AC","CR",
                  "apogee", "perigee","launch","inclination","mass","type","country")
 
 
-all_conjs_expanded %>% 
+SMC_out = all_conjs_expanded %>% 
   group_by(noradId) %>%
   summarise(E5 = length(Range),
             E1 = length(Range[Range <= 1])) %>%
@@ -555,19 +556,39 @@ all_conjs_expanded %>%
          MF = as.numeric(mass)/1500) %>%
   left_join(cluster_summary, by="cluster_new") %>%
   mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) * (MF * df * spatDens)) %>%
-  arrange(desc(SMC_risk)) %>% 
+  arrange(desc(SMC_risk)) %>%
+  dplyr::select(cols_ordered)
+
+SMC_out %>%
   head(50) %>%
-  dplyr::select(cols_ordered) %>%
   rename(cluster=cluster_new) %>%
   DT::datatable(rownames=F, extensions = c('Buttons', 'Responsive'),
                 options = list( lengthMenu = c(10, 20, 30, 40, 50),
                                 buttons = list(list(extend='excel',filename="worst_offenders_2", text="Download data", title=paste0("Worst offenders (method 2) as of ", today))),
                                 dom = 'Bfrtip'#,
                                 )) %>%
-  #formatRound(columns = c("closest approach (m)","avg num op sats","med num op sats",
-  #"avg persist of conj alt","med persist of conj alt", "total risk"), digits=1) %>%
+  formatRound(columns = c("SMC_risk","spatDens","df","velocity","SD","AC","CR"), digits=2) %>%
   formatDate(columns = "launch", method = "toDateString", params = list('en-US', list(year = 'numeric', month = 'numeric', day='numeric')
       ))
 
+```
+
+Percent of risk accounted for by each cluster among all objects:
+```{r risk_plot_2, fig.width=4}
+SMC_out %>% group_by(cluster_new) %>%
+  summarise(p = n()) %>% 
+  mutate(p = p/nrow(mcma_objs)*100,
+         cluster_new = factor(cluster_new,
+                             levels = c("cc615", "cc775", "cc850", "cc975", "cc1200", "cc1500", "cleo","CHIGH"),
+                             ordered = T))%>%
+  ggplot(aes(x=1, y=p, fill=cluster_new)) +
+  geom_col(width = .2)+
+  geom_text(position = position_stack(vjust=0.5), 
+            aes(label=paste0(round(p), "%")))+
+  theme_minimal()+
+  theme(axis.title.x = element_blank(), axis.text = element_blank(), 
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(fill="Cluster", y="Risk")+
+  scale_fill_brewer(type = "qual")
 ```
 
