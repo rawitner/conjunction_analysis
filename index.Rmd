@@ -24,6 +24,7 @@ all_conjs = readRDS("RDSfiles/all_conjs")
 all_conjs_expanded = readRDS("RDSfiles/all_conjs_expanded")
 derelicts = readRDS("RDSfiles/derelicts")
 derelictDat = readRDS("RDSfiles/derelictDatNew")
+alt_bins = readRDS("RDSfiles/alt_bins")
 file_list = readRDS("RDSfiles/file_list")
 today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
@@ -407,7 +408,7 @@ Probability:
 
 - CR = annual collision rate of each cluster
   * Each cluster of massive derelicts has an annual collision rate
-- AR = cross-sectional area of object (estimated by multiplying mass by 0.0005)
+- AR = cross-sectional area of object (estimated by multiplying mass by 0.005)
   * The larger cross-sectional area, the larger the likelihood of colliding
 - E5 = number of encounters < 5 km per year
 - E1 = number of encounters < 1 km per year
@@ -425,6 +426,7 @@ Consequence:
 Then for each object, the risk is calculated as:
 $$Risk = [CR * AR * {E5/25 * (5 * E1)}] * [MF * DF * SD]$$
 ```{r numOpSatsVec, eval=F}
+## OLD -- DONT USE
 # numOpSatsVec contains number of op sats that cross paths with each object's path
 numOpSatsVec = vector()
 for (i in 1:nrow(mcma_objs)){
@@ -446,17 +448,126 @@ for (i in 1:nrow(mcma_objs)){
 mcma_objs$numOpSats = numOpSatsVec
 ```
 
+```{r getSpaDens, eval=F}
+# For the spatial density calculation, I'm creating a dataframe with altitude (intervals of 10) and volume; then counting the number of massive derelicts (based on their avg altitude) within each bin; then interpolating a spatial density value for each object's avg altitude.
 
-```{r}
-a = all_conjs_expanded %>% 
+library(pracma)
+integrand = function(r,phi,theta) {(r^2)*sin(phi)}
+radius = 6371 #Earth's radius
+
+get_volume = function(minalt, maxalt) {
+  integral3(integrand, radius+minalt, radius+maxalt, 0, pi, 0, 2*pi)
+}
+
+alt_bins = data.frame(altitude = seq(110, 70000, 10))
+vols = sapply(alt_bins$altitude, function(x) {get_volume(x, x+10)})
+alt_bins$volume = vols
+
+saveRDS(alt_bins, "RDSfiles/alt_bins")
+
+roundDown <- function(x) 10*floor(x/10)
+
+alt_bins = mcma_objs %>% 
+  mutate(altitude = roundDown((as.numeric(apogee) + as.numeric(perigee))/2)) %>% 
+  group_by(altitude) %>% 
+  summarise(numSats = n()) %>% 
+  right_join(alt_bins, by="altitude") %>%
+  mutate(numSats = replace_na(numSats, 0)) %>% 
+  mutate(spatDens = numSats / volume * (10^12))
+
+mcma_objs = mcma_objs %>% 
+  mutate(altitude = roundDown((as.numeric(apogee) + as.numeric(perigee))/2)) %>% 
+  left_join(select(alt_bins, c(altitude, spatDens)), by="altitude")
+
+saveRDS(mcma_objs, "RDSfiles/mcma_objs")
+```
+
+```{r getDF, eval=F}
+df_data = readxl::read_xlsx("misc_files/DF.xlsx", skip = 2, 
+                            col_names = c("altitude","atmos_dens", "DF"))
+
+# fit exponential model to DF data
+model = lm(log(atmos_dens) ~ altitude, df_data)
+intercept = as.numeric(model$coefficients[1])
+slope = as.numeric(model$coefficients[2])
+
+ad_at_500 = 9e-13
+
+df_data$predicted = exp(intercept + slope * df_data$altitude)
+df_data$predicted_df = df_data$predicted / ad_at_500
+
+roundDown <- function(x) 25*floor(x/25)
+
+mcma_objs = mcma_objs %>% 
+  mutate(avgAlt = (as.numeric(apogee)+as.numeric(perigee))/2,
+    predicted_ad = exp(intercept + slope * avgAlt),
+    df = predicted_ad / ad_at_500)
+
+saveRDS(mcma_objs, "RDSfiles/mcma_objs")
+```
+
+```{r getCR}
+# SD of cluster
+x = c("cc615","cc775","cc850","cc975","cc1200","cc1500","cleo","CHIGH")
+
+cluster_summary = mcma_objs %>% 
+  group_by(cluster_new) %>%
+  summarise(numSats = n(),
+            avgMass = mean(as.numeric(mass), na.rm=T)) %>%
+  slice(match(x, cluster_new))
+
+cluster_summary$volume = c(get_volume(475,659),
+                      get_volume(666,810),
+                      get_volume(810,896),
+                      get_volume(900,1020),
+                      get_volume(1021,1319),
+                      get_volume(1352,1600),
+                      get_volume(477,1589),
+                      get_volume(112,69991))
+
+cluster_summary$SD = cluster_summary$numSats / cluster_summary$volume * (10^10)
+
+cluster_summary = all_conjs_expanded %>% 
+  left_join(select(mcma_objs, c(noradId, cluster_new)), by="noradId") %>%
+  group_by(cluster_new) %>%
+  summarise(velocity = mean(Velocity)) %>%
+  slice(match(x, cluster_new)) %>%
+  right_join(cluster_summary, by="cluster_new") %>%
+  mutate(AC = 2*(.005*avgMass),
+         CR = numSats^2/2 * (AC * velocity) / volume) # collision rate
+
+```
+
+
+```{r getSMC}
+cols_ordered = c("noradId", "cluster_new","SMC_risk", "E5", "E1", "spatDens", "df", "AR", "MF","velocity","SD","AC","CR",
+                 "apogee", "perigee","launch","inclination","mass","type","country")
+
+
+all_conjs_expanded %>% 
   group_by(noradId) %>%
   summarise(E5 = length(Range),
             E1 = length(Range[Range <= 1])) %>%
   right_join(mcma_objs, by="noradId") %>% 
   mutate(E5 = replace_na(E5, 0),
          E1 = replace_na(E1, 0),
-         AR = .0005 * as.numeric(mass))# %>%
-  #View()
+         AR = .005 * as.numeric(mass), 
+         MF = as.numeric(mass)/1500) %>%
+  left_join(cluster_summary, by="cluster_new") %>%
+  mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) * (MF * df * spatDens)) %>%
+  arrange(desc(SMC_risk)) %>% 
+  head(50) %>%
+  dplyr::select(cols_ordered) %>%
+  rename(cluster=cluster_new) %>%
+  DT::datatable(rownames=F, extensions = c('Buttons', 'Responsive'),
+                options = list( lengthMenu = c(10, 20, 30, 40, 50),
+                                buttons = list(list(extend='excel',filename="worst_offenders_2", text="Download data", title=paste0("Worst offenders (method 2) as of ", today))),
+                                dom = 'Bfrtip'#,
+                                )) %>%
+  #formatRound(columns = c("closest approach (m)","avg num op sats","med num op sats",
+  #"avg persist of conj alt","med persist of conj alt", "total risk"), digits=1) %>%
+  formatDate(columns = "launch", method = "toDateString", params = list('en-US', list(year = 'numeric', month = 'numeric', day='numeric')
+      ))
 
 ```
 
