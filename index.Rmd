@@ -288,6 +288,7 @@ ggplot() +
   labs(x="Cluster",y="", title = "Percent of Encounters by Country - misses within 5 km", fill="Country",
        subtitle="Number of encounters shown above each bar", caption=paste0("Encounters from 20OCT2019-", today))
 ```
+
 ```{r barchart500m, fig.width=7.5}
 p = all_conjs_expanded %>%
   filter(Range <= 0.5) %>%
@@ -508,7 +509,17 @@ mcma_objs = mcma_objs %>%
 saveRDS(mcma_objs, "RDSfiles/mcma_objs")
 ```
 
+Summary of key measures per cluster:
+
 ```{r getCR}
+library(pracma)
+integrand = function(r,phi,theta) {(r^2)*sin(phi)}
+radius = 6371 #Earth's radius
+
+get_volume = function(minalt, maxalt) {
+  integral3(integrand, radius+minalt, radius+maxalt, 0, pi, 0, 2*pi)
+}
+
 # SD of cluster
 x = c("cc615","cc775","cc850","cc975","cc1200","cc1500","cleo","CHIGH")
 
@@ -535,9 +546,16 @@ cluster_summary = all_conjs_expanded %>%
   summarise(velocity = mean(Velocity)) %>%
   slice(match(x, cluster_new)) %>%
   right_join(cluster_summary, by="cluster_new") %>%
-  mutate(AC = 2*(.005*avgMass),
-         CR = numSats^2/2 * (AC * velocity) / volume) # collision rate
+  mutate(diam_m = .005*avgMass,
+         AC = (pi*(diam_m/1000)^2)/4, #2*(.005*avgMass), #  [(Pi)*d^2]/4
+         lambda = (numSats / volume) * AC * velocity,
+         Time = 12*60*60*24*30, # seconds in a year
+         PC = 1 - exp(-lambda * Time),
+         CR = PC * numSats/2) %>%
+  select(-Time)
+         #CR = numSats^2/2 * (AC * velocity * Time) / volume) # collision rate
 
+cluster_summary %>% kable()
 ```
 
 Top 50 statistically most concerning objects:
