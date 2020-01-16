@@ -561,7 +561,13 @@ cluster_summary %>%
          lambda = format(lambda, scientific = T, digits=2),
          PC = format(PC, scientific = T, digits=2),
          CR = format(CR, scientific = T, digits=2)) %>%
-  kable(digits = 1)
+  rename(cluster = cluster_new,
+         `avg velocity` = velocity,
+         `num sats` = numSats,
+         `avg mass` = avgMass,
+         `avg diam` = diam_m) %>%
+  kable(digits = 1) %>%
+  kableExtra::kable_styling()
 ```
 
 Top 50 statistically most concerning objects:
