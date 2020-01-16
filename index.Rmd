@@ -555,7 +555,13 @@ cluster_summary = all_conjs_expanded %>%
   select(-Time)
          #CR = numSats^2/2 * (AC * velocity * Time) / volume) # collision rate
 
-cluster_summary %>% kable()
+cluster_summary %>% 
+  mutate(AC = format(AC, scientific = T, digits=2),
+         volume = format(volume, scientific = T, digits=2),
+         lambda = format(lambda, scientific = T, digits=2),
+         PC = format(PC, scientific = T, digits=2),
+         CR = format(CR, scientific = T, digits=2)) %>%
+  kable(digits = 1)
 ```
 
 Top 50 statistically most concerning objects:
@@ -587,7 +593,7 @@ SMC_out %>%
                                 buttons = list(list(extend='excel',filename="worst_offenders_2", text="Download data", title=paste0("Worst offenders (method 2) as of ", today))),
                                 dom = 'Bfrtip'#,
                                 )) %>%
-  formatRound(columns = c("SMC_risk","spatDens","df","velocity","SD","AC","CR"), digits=2) %>%
+  formatRound(columns = c("SMC_risk","spatDens","df","velocity","SD","AC","CR", "MF"), digits=2) %>%
   formatDate(columns = "launch", method = "toDateString", params = list('en-US', list(year = 'numeric', month = 'numeric', day='numeric')
       ))
 
