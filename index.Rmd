@@ -403,7 +403,7 @@ mcma_objs %>% group_by(cluster_new) %>%
   scale_fill_brewer(type = "qual")
 ```
 
-## Worst offender analysis--Method 2
+## Worst offender analysis-- Method 2
 
 The second method for calculating the top 50 statistically most concerning objects also uses the idea that risk = probability * consequence, although it slightly differs from the first method in what components make up probability and consequence.
 
@@ -453,6 +453,7 @@ mcma_objs$numOpSats = numOpSatsVec
 
 ```{r getSpaDens, eval=F}
 # For the spatial density calculation, I'm creating a dataframe with altitude (intervals of 10) and volume; then counting the number of massive derelicts (based on their avg altitude) within each bin; then interpolating a spatial density value for each object's avg altitude.
+opSats = derelictDat %>% filter(operational & onOrbit)
 
 library(pracma)
 integrand = function(r,phi,theta) {(r^2)*sin(phi)}
@@ -470,17 +471,17 @@ saveRDS(alt_bins, "RDSfiles/alt_bins")
 
 roundDown <- function(x) 10*floor(x/10)
 
-alt_bins = mcma_objs %>% 
+alt_bins = opSats %>% #mcma_objs %>% 
   mutate(altitude = roundDown((as.numeric(apogee) + as.numeric(perigee))/2)) %>% 
   group_by(altitude) %>% 
-  summarise(numSats = n()) %>% 
+  summarise(numOpSats = n()) %>% 
   right_join(alt_bins, by="altitude") %>%
-  mutate(numSats = replace_na(numSats, 0)) %>% 
-  mutate(spatDens = numSats / volume * (10^12))
+  mutate(numOpSats = replace_na(numOpSats, 0)) %>% 
+  mutate(spatDensOpSats = numOpSats / volume * (10^8))
 
 mcma_objs = mcma_objs %>% 
   mutate(altitude = roundDown((as.numeric(apogee) + as.numeric(perigee))/2)) %>% 
-  left_join(select(alt_bins, c(altitude, spatDens)), by="altitude")
+  left_join(select(alt_bins, c(altitude, spatDensOpSats)), by="altitude") 
 
 saveRDS(mcma_objs, "RDSfiles/mcma_objs")
 ```
@@ -563,9 +564,10 @@ cluster_summary %>%
          CR = format(CR, scientific = T, digits=2)) %>%
   rename(cluster = cluster_new,
          `avg velocity` = velocity,
-         `num sats` = numSats,
+         `num derelicts` = numSats,
          `avg mass` = avgMass,
-         `avg diam` = diam_m) %>%
+         `avg diam` = diam_m,
+         `SD derelicts` = SD) %>%
   kable(digits = 1) %>%
   kableExtra::kable_styling()
 ```
@@ -573,7 +575,7 @@ cluster_summary %>%
 Top 50 statistically most concerning objects:
 
 ```{r getSMC}
-cols_ordered = c("noradId", "cluster_new","SMC_risk", "E5", "E1", "spatDens", "df", "AR", "MF","velocity","SD","AC","CR",
+cols_ordered = c("noradId", "name","cluster_new","SMC_risk", "E5", "E1", "spatDens", "df", "AR", "MF","velocity","SD","AC","CR",
                  "apogee", "perigee","launch","inclination","mass","type","country")
 
 
