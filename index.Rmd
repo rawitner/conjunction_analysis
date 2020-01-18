@@ -575,7 +575,7 @@ cluster_summary %>%
 Top 50 statistically most concerning objects:
 
 ```{r getSMC}
-cols_ordered = c("noradId", "name","cluster_new","SMC_risk", "E5", "E1", "spatDens", "df", "AR", "MF","velocity","SD","AC","CR",
+cols_ordered = c("noradId", "name","cluster_new","SMC_risk", "E5", "E1", "spatDens", "DF", "AR", "MF","SD","AC","CR",
                  "apogee", "perigee","launch","inclination","mass","type","country")
 
 
@@ -591,17 +591,20 @@ SMC_out = all_conjs_expanded %>%
   left_join(cluster_summary, by="cluster_new") %>%
   mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) * (MF * df * spatDens)) %>%
   arrange(desc(SMC_risk)) %>%
-  dplyr::select(cols_ordered)
+  rename(DF = df) %>%
+  dplyr::select(cols_ordered) 
 
 SMC_out %>%
   head(50) %>%
+  mutate(AC = format(AC, scientific = T, digits=2),
+         CR = format(CR, scientific = T, digits=2)) %>%
   rename(cluster=cluster_new) %>%
   DT::datatable(rownames=F, extensions = c('Buttons', 'Responsive'),
                 options = list( lengthMenu = c(10, 20, 30, 40, 50),
                                 buttons = list(list(extend='excel',filename="worst_offenders_2", text="Download data", title=paste0("Worst offenders (method 2) as of ", today))),
                                 dom = 'Bfrtip'#,
                                 )) %>%
-  formatRound(columns = c("SMC_risk","spatDens","df","velocity","SD","AC","CR", "MF"), digits=2) %>%
+  formatRound(columns = c("SMC_risk","spatDens","DF","SD","AC","CR", "MF"), digits=2) %>%
   formatDate(columns = "launch", method = "toDateString", params = list('en-US', list(year = 'numeric', month = 'numeric', day='numeric')
       ))
 
