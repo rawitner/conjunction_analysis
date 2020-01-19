@@ -381,8 +381,8 @@ top50 %>% dplyr::select(cols_ordered) %>%
 - `med persist of conj alt` is the same as `avg persist of conj alt` but median instead of mean
 - `num encounters <1 km` is the number of encounters below 1 km miss distance
 
-### Risk among all objects
-Among all objects, percent of risk accounted for by each cluster
+### Risk among all derelicts
+Among all derelicts, percent of risk accounted for by each cluster:
 
 ```{r risk_plot, fig.width=4}
 totRisk = mcma_objs %>% summarise(totRisk = sum(totalRisk)) %>% pull()
@@ -428,7 +428,7 @@ Consequence:
   * Consequence is higher when there are more operational satellites in the vacinity.
 
 Then for each object, the risk is calculated as:
-$$Risk = [CR * AR * {E5/25 * (5 * E1)}] * [MF * DF * SD]$$
+$$Risk = [CR * AR * {E5/25 * (5 * E1)}] * [MF * 1/ DF * SD]$$
 ```{r numOpSatsVec, eval=F}
 ## OLD -- DONT USE
 # numOpSatsVec contains number of op sats that cross paths with each object's path
@@ -589,7 +589,7 @@ SMC_out = all_conjs_expanded %>%
          E1 = replace_na(E1, 0),
          AR = .005 * as.numeric(mass), 
          MF = as.numeric(mass)/1500) %>%
-  left_join(cluster_summary, by="cluster_new") %>% 
+  left_join(cluster_summary, by="cluster_new") %>%
   mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) * (MF * 1/DF * spatDensOpSats)) %>%
   arrange(desc(SMC_risk)) %>%
   dplyr::select(cols_ordered) 
@@ -610,7 +610,8 @@ SMC_out %>%
 
 ```
 
-Percent of risk accounted for by each cluster among all objects:
+### Risk among all derelicts
+Among all derelicts, percent of risk accounted for by each cluster:
 
 ```{r risk_plot_2, fig.width=4}
 totRisk = SMC_out %>% summarise(totRisk = sum(SMC_risk)) %>% pull()
