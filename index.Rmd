@@ -468,10 +468,11 @@ vols = sapply(alt_bins$altitude, function(x) {get_volume(x, x+10)})
 alt_bins$volume = vols
 
 saveRDS(alt_bins, "RDSfiles/alt_bins")
+alt_bins = readRDS("RDSfiles/alt_bins")
 
 roundDown <- function(x) 10*floor(x/10)
 
-alt_bins = opSats %>% #mcma_objs %>% 
+alt_bins = opSats %>%
   mutate(altitude = roundDown((as.numeric(apogee) + as.numeric(perigee))/2)) %>% 
   group_by(altitude) %>% 
   summarise(numOpSats = n()) %>% 
@@ -505,7 +506,7 @@ roundDown <- function(x) 25*floor(x/25)
 mcma_objs = mcma_objs %>% 
   mutate(avgAlt = (as.numeric(apogee)+as.numeric(perigee))/2,
     predicted_ad = exp(intercept + slope * avgAlt),
-    df = predicted_ad / ad_at_500)
+    DF = predicted_ad / ad_at_500)
 
 saveRDS(mcma_objs, "RDSfiles/mcma_objs")
 ```
@@ -526,7 +527,7 @@ x = c("cc615","cc775","cc850","cc975","cc1200","cc1500","cleo","CHIGH")
 
 cluster_summary = mcma_objs %>% 
   group_by(cluster_new) %>%
-  summarise(numSats = n(),
+  summarise(numDerelicts = n(),
             avgMass = mean(as.numeric(mass), na.rm=T)) %>%
   slice(match(x, cluster_new))
 
@@ -539,7 +540,7 @@ cluster_summary$volume = c(get_volume(475,659),
                       get_volume(477,1589),
                       get_volume(112,69991))
 
-cluster_summary$SD = cluster_summary$numSats / cluster_summary$volume * (10^10)
+#cluster_summary$SD = cluster_summary$numSats / cluster_summary$volume * (10^10)
 
 cluster_summary = all_conjs_expanded %>% 
   left_join(select(mcma_objs, c(noradId, cluster_new)), by="noradId") %>%
@@ -548,11 +549,11 @@ cluster_summary = all_conjs_expanded %>%
   slice(match(x, cluster_new)) %>%
   right_join(cluster_summary, by="cluster_new") %>%
   mutate(diam_m = .005*avgMass,
-         AC = (pi*(diam_m/1000)^2)/4, #2*(.005*avgMass), #  [(Pi)*d^2]/4
-         lambda = (numSats / volume) * AC * velocity,
+         AC = (pi*(diam_m/1000)^2)/4,
+         lambda = (numDerelicts / volume) * AC * velocity,
          Time = 12*60*60*24*30, # seconds in a year
          PC = 1 - exp(-lambda * Time),
-         CR = PC * numSats/2) %>%
+         CR = PC * numDerelicts/2) %>%
   select(-Time)
          #CR = numSats^2/2 * (AC * velocity * Time) / volume) # collision rate
 
@@ -563,19 +564,18 @@ cluster_summary %>%
          PC = format(PC, scientific = T, digits=2),
          CR = format(CR, scientific = T, digits=2)) %>%
   rename(cluster = cluster_new,
-         `avg velocity` = velocity,
-         `num derelicts` = numSats,
-         `avg mass` = avgMass,
-         `avg diam` = diam_m,
-         `SD derelicts` = SD) %>%
-  kable(digits = 1) %>%
+         `num derelicts` = numDerelicts,
+         `avg mass (kg)` = avgMass,
+         `avg diam` = diam_m) %>%
+  select(-velocity) %>%
+  kable(digits = 1, format.args = list(big.mark = ",")) %>%
   kableExtra::kable_styling()
 ```
 
 Top 50 statistically most concerning objects:
 
 ```{r getSMC}
-cols_ordered = c("noradId", "name","cluster_new","SMC_risk", "E5", "E1", "spatDens", "DF", "AR", "MF","SD","AC","CR",
+cols_ordered = c("noradId", "name","cluster_new","SMC_risk", "E5", "E1", "spatDens", "DF", "AR", "MF","spatDensOpSats","AC","CR",
                  "apogee", "perigee","launch","inclination","mass","type","country")
 
 
@@ -588,10 +588,9 @@ SMC_out = all_conjs_expanded %>%
          E1 = replace_na(E1, 0),
          AR = .005 * as.numeric(mass), 
          MF = as.numeric(mass)/1500) %>%
-  left_join(cluster_summary, by="cluster_new") %>%
-  mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) * (MF * df * spatDens)) %>%
+  left_join(cluster_summary, by="cluster_new") %>% 
+  mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) * (MF * DF * spatDensOpSats)) %>%
   arrange(desc(SMC_risk)) %>%
-  rename(DF = df) %>%
   dplyr::select(cols_ordered) 
 
 SMC_out %>%
@@ -604,7 +603,7 @@ SMC_out %>%
                                 buttons = list(list(extend='excel',filename="worst_offenders_2", text="Download data", title=paste0("Worst offenders (method 2) as of ", today))),
                                 dom = 'Bfrtip'#,
                                 )) %>%
-  formatRound(columns = c("SMC_risk","spatDens","DF","SD","AC","CR", "MF"), digits=2) %>%
+  formatRound(columns = c("SMC_risk","spatDens","DF","spatDensOpSats","AC","CR", "MF"), digits=2) %>%
   formatDate(columns = "launch", method = "toDateString", params = list('en-US', list(year = 'numeric', month = 'numeric', day='numeric')
       ))
 
