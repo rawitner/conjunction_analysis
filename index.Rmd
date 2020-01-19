@@ -227,7 +227,8 @@ all_conjs %>%
   group_by(clusterLab) %>%
   arrange(Range) %>%
   mutate(rowid = 1, cumnum = cumsum(rowid)) %>% 
-  ggplot(aes(x=Range, y = cumnum, color=clusterLab, linetype=clusterLab)) + 
+  rename(Cluster = clusterLab) %>%
+  ggplot(aes(x=Range, y = cumnum, color=Cluster, linetype=Cluster)) + 
   geom_line() +
   theme_light() +
   scale_x_log10(labels = c(10,100,300,500,1000,5000), 
@@ -589,7 +590,7 @@ SMC_out = all_conjs_expanded %>%
          AR = .005 * as.numeric(mass), 
          MF = as.numeric(mass)/1500) %>%
   left_join(cluster_summary, by="cluster_new") %>% 
-  mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) * (MF * DF * spatDensOpSats)) %>%
+  mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) * (MF * 1/DF * spatDensOpSats)) %>%
   arrange(desc(SMC_risk)) %>%
   dplyr::select(cols_ordered) 
 
@@ -614,7 +615,8 @@ Percent of risk accounted for by each cluster among all objects:
 ```{r risk_plot_2, fig.width=4}
 totRisk = SMC_out %>% summarise(totRisk = sum(SMC_risk)) %>% pull()
 
-SMC_out %>% group_by(cluster_new) %>%
+SMC_out %>% head(50) %>%
+  group_by(cluster_new) %>%
   #summarise(p = n()) %>% 
   summarise(p = sum(SMC_risk)) %>% 
   mutate(p = p/totRisk*100,
