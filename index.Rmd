@@ -428,7 +428,7 @@ Consequence:
   * Consequence is higher when there are more operational satellites in the vacinity.
 
 Then for each object, the risk is calculated as:
-$$Risk = [CR * AR * {E5/25 * (5 * E1)}] * [MF * 1/ DF * SD]$$
+$$Risk = [CR * AR * {E5/25 * (5 * E1)}] * [MF * DF * SD]$$
 ```{r numOpSatsVec, eval=F}
 ## OLD -- DONT USE
 # numOpSatsVec contains number of op sats that cross paths with each object's path
@@ -490,17 +490,23 @@ saveRDS(mcma_objs, "RDSfiles/mcma_objs")
 
 ```{r getDF, eval=F}
 df_data = readxl::read_xlsx("misc_files/DF.xlsx", skip = 2, 
-                            col_names = c("altitude","atmos_dens", "DF"))
+                            col_names = c("altitude","atmos_dens", "DF_old", "DF"))
 
 # fit exponential model to DF data
 model = lm(log(atmos_dens) ~ altitude, df_data)
 intercept = as.numeric(model$coefficients[1])
 slope = as.numeric(model$coefficients[2])
 
+altvalues <- seq(0, 1600, 50)
+predicted_atmos_dens <- exp(predict(model,list(altitude=altvalues)))
+plot(df_data$altitude, df_data$atmos_dens,pch=16)
+lines(altvalues, predicted_atmos_dens,lwd=2, col = "red")
+
+
 ad_at_500 = 9e-13
 
-df_data$predicted = exp(intercept + slope * df_data$altitude)
-df_data$predicted_df = df_data$predicted / ad_at_500
+df_data$predicted_dens = exp(intercept + slope * df_data$altitude)
+df_data$predicted_df = ad_at_500 / df_data$predicted_dens
 
 roundDown <- function(x) 25*floor(x/25)
 
