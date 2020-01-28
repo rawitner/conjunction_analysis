@@ -30,7 +30,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files}
+```{r update_conj_files, eval=F}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
@@ -219,7 +219,7 @@ saveRDS(all_conjs_expanded, "RDSfiles/all_conjs_expanded") # save to RDS file
 #labels <- as.character(breaks * show.labels)
 #labels <- gsub("^0$", "", labels)
 
-mycolors = c(brewer.pal(name="Set1", n = 8), brewer.pal(name="Set2", n = 3))
+mycolors = c(brewer.pal(name="Set1", n = 9), brewer.pal(name="Set2", n = 4))
 mycolors[6] = "#000000"
 
 all_conjs %>%
@@ -246,7 +246,7 @@ all_conjs %>%
   #              labels = scales::trans_format("log10", scales::math_format(10^.x)))+
   annotation_logticks()+
   scale_linetype_manual(values=c("dashed", "solid", "solid", "solid",
-                                 "solid", "solid", "solid", "solid", "dashed"))
+                                 "solid", "solid", "solid", "solid", "solid", "dashed"))
 ```
 
 ## Percent of Encounters by Country
