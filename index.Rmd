@@ -30,7 +30,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files}
+```{r update_conj_files, eval=F}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
@@ -596,7 +596,7 @@ SMC_out = all_conjs_expanded %>%
          AR = .005 * as.numeric(mass), 
          MF = as.numeric(mass)/1500) %>%
   left_join(cluster_summary, by="cluster_new") %>%
-  mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) * (MF * 1/DF * spatDensOpSats)) %>%
+  mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) * (MF * DF * spatDensOpSats)) %>%
   arrange(desc(SMC_risk)) %>%
   dplyr::select(cols_ordered) 
 
