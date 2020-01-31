@@ -469,9 +469,11 @@ vols = sapply(alt_bins$altitude, function(x) {get_volume(x, x+10)})
 alt_bins$volume = vols
 
 saveRDS(alt_bins, "RDSfiles/alt_bins")
-alt_bins = readRDS("RDSfiles/alt_bins")
 
 roundDown <- function(x) 10*floor(x/10)
+library(zoo)
+
+alt_bins = readRDS("RDSfiles/alt_bins")
 
 alt_bins = opSats %>%
   mutate(altitude = roundDown((as.numeric(apogee) + as.numeric(perigee))/2)) %>% 
@@ -479,7 +481,8 @@ alt_bins = opSats %>%
   summarise(numOpSats = n()) %>% 
   right_join(alt_bins, by="altitude") %>%
   mutate(numOpSats = replace_na(numOpSats, 0)) %>% 
-  mutate(spatDensOpSats = numOpSats / volume * (10^8))
+  mutate(spatDensOpSats_1 = numOpSats / volume * (10^10)) %>%
+  mutate(spatDensOpSats = rollmean(spatDensOpSats_1, k=5, na.pad=T))
 
 mcma_objs = mcma_objs %>% 
   mutate(altitude = roundDown((as.numeric(apogee) + as.numeric(perigee))/2)) %>% 
