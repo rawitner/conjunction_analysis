@@ -582,6 +582,19 @@ cluster_summary %>%
   kableExtra::kable_styling()
 ```
 
+```{r SMC_out_cluster_summary, eval=F}
+SMC_out %>% group_by(cluster_new) %>% 
+  summarise(avgCR = format(mean(CR), scientific = T, digits=2),
+            avgAR = round(mean(AR),2),
+            avgE5 = round(mean(E5),2),
+            avgE1 = round(mean(E1),2),
+            avgMF = round(mean(MF),2),
+            avgDF = format(mean(DF),scientific = T, digits=2), 
+            avgSD = round(mean(spatDensOpSats),2)) %>%
+  slice(match(x, cluster_new)) %>% View()
+```
+
+
 Top 50 statistically most concerning objects:
 
 ```{r getSMC}
@@ -625,12 +638,12 @@ Among all derelicts, percent of risk accounted for by each cluster:
 ```{r risk_plot_2, fig.width=4}
 totRisk = SMC_out %>% summarise(totRisk = sum(SMC_risk)) %>% pull()
 
-SMC_out %>% head(50) %>%
+SMC_out %>% #head(50) %>%
   group_by(cluster_new) %>%
   #summarise(p = n()) %>% 
   summarise(p = sum(SMC_risk)) %>% 
   mutate(p = p/totRisk*100,
-         cluster_new = factor(cluster_new, levels = c("cc615", "cc775", "cc850", "cc975", "cc1200", "cc1500", "cleo","CHIGH"), ordered = T)) %>%
+         cluster_new = factor(cluster_new, levels = c("cc615", "cc775", "cc850", "cc975", "cc1200", "cc1500", "cleo","CHIGH"), ordered = T)) %>% 
   ggplot(aes(x=1, y=p, fill=cluster_new)) +
   geom_col(width = .2)+
   geom_text(position = position_stack(vjust=0.5), 
