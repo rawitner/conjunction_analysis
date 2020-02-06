@@ -30,7 +30,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files}
+```{r update_conj_files, eval=F}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
@@ -567,6 +567,13 @@ cluster_summary = all_conjs_expanded %>%
   select(-Time)
          #CR = numSats^2/2 * (AC * velocity * Time) / volume) # collision rate
 
+# updated values from spreadsheet 2/6/20
+cluster_summary$CR = c(1.5E-03, 1.4E-03, 2.4E-03, 8.2E-03, 3.3E-05, 1.2E-04, 3.1E-04, 2.5E-07)
+cluster_summary$AR = c(9,8,16,6,7,7,9,15)
+cluster_summary$DF = c(10,30,100,120,129,129,129,129)
+cluster_summary$SD = c(2.7, 2.5, 1.8, 1.2, 1.4, 1.7, 2.0, 0.5) #log(SD)
+
+
 cluster_summary %>% 
   mutate(AC = format(AC, scientific = T, digits=2),
          volume = format(volume, scientific = T, digits=2),
@@ -582,18 +589,6 @@ cluster_summary %>%
   kableExtra::kable_styling()
 ```
 
-```{r SMC_out_cluster_summary, eval=F}
-SMC_out %>% group_by(cluster_new) %>% 
-  summarise(avgCR = format(mean(CR), scientific = T, digits=2),
-            avgAR = round(mean(AR),2),
-            avgE5 = round(mean(E5),2),
-            avgE1 = round(mean(E1),2),
-            avgMF = round(mean(MF),2),
-            avgDF = format(mean(DF),scientific = T, digits=2), 
-            avgSD = round(mean(spatDensOpSats),2)) %>%
-  slice(match(x, cluster_new)) %>% View()
-```
-
 
 Top 50 statistically most concerning objects:
 
@@ -601,17 +596,17 @@ Top 50 statistically most concerning objects:
 cols_ordered = c("noradId", "name","cluster_new","SMC_risk", "E5", "E1", "spatDens", "DF", "AR", "MF","spatDensOpSats","AC","CR",
                  "apogee", "perigee","launch","inclination","mass","type","country")
 
-
 SMC_out = all_conjs_expanded %>% 
   group_by(noradId) %>%
   summarise(E5 = length(Range),
             E1 = length(Range[Range <= 1])) %>%
   right_join(mcma_objs, by="noradId") %>% 
+  dplyr::select(-DF) %>% # DF for object's altitude
   mutate(E5 = replace_na(E5, 0),
          E1 = replace_na(E1, 0),
-         AR = .005 * as.numeric(mass), 
+         #AR = .005 * as.numeric(mass), 
          MF = as.numeric(mass)/1500) %>%
-  left_join(cluster_summary, by="cluster_new") %>%
+  left_join(cluster_summary, by="cluster_new") %>% 
   mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) * (MF * DF * spatDensOpSats)) %>%
   arrange(desc(SMC_risk)) %>%
   dplyr::select(cols_ordered) 
@@ -630,6 +625,18 @@ SMC_out %>%
   formatDate(columns = "launch", method = "toDateString", params = list('en-US', list(year = 'numeric', month = 'numeric', day='numeric')
       ))
 
+```
+
+```{r SMC_out_cluster_summary, eval=F}
+SMC_out %>% group_by(cluster_new) %>% 
+  summarise(avgCR = format(mean(CR), scientific = T, digits=2),
+            avgAR = round(mean(AR),2),
+            avgE5 = round(mean(E5),2),
+            avgE1 = round(mean(E1),2),
+            avgMF = round(mean(MF),2),
+            avgDF = format(mean(DF),scientific = T, digits=2), 
+            avgSD = round(mean(spatDensOpSats),2)) %>%
+  slice(match(x, cluster_new)) %>% View()
 ```
 
 ### Risk among all derelicts
