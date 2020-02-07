@@ -569,7 +569,7 @@ cluster_summary = all_conjs_expanded %>%
 
 # updated values from spreadsheet 2/6/20
 cluster_summary$CR = c(1.5E-03, 1.4E-03, 2.4E-03, 8.2E-03, 3.3E-05, 1.2E-04, 3.1E-04, 2.5E-07)
-cluster_summary$AR = c(9,8,16,6,7,7,9,15)
+#cluster_summary$AR = c(9,8,16,6,7,7,9,15)
 cluster_summary$DF = c(10,30,100,120,129,129,129,129)
 cluster_summary$SD = c(2.7, 2.5, 1.8, 1.2, 1.4, 1.7, 2.0, 0.5) #log(SD)
 
@@ -604,7 +604,7 @@ SMC_out = all_conjs_expanded %>%
   dplyr::select(-DF) %>% # DF for object's altitude
   mutate(E5 = replace_na(E5, 0),
          E1 = replace_na(E1, 0),
-         #AR = .005 * as.numeric(mass), 
+         AR = .005 * as.numeric(mass), 
          MF = as.numeric(mass)/1500) %>%
   left_join(cluster_summary, by="cluster_new") %>% 
   mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) * (MF * DF * spatDensOpSats)) %>%
