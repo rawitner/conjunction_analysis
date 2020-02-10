@@ -424,7 +424,7 @@ Consequence:
   * Divide by 1500 so that objects below 1500 kg bring risk down while larger masses increase risk
 - DF = $\frac{atmospheric~density ~at~ 500~km}{atmospheric~density~at ~object's ~avg. ~altitude}$ 
   * There's a higher consequence for debris that linger for a longer amount of time, and orbital lifetime of resulting debris is proportional to atmospheric density (which decreases exponentially with increasing altitude).
-- SD = spatial density of operational satellites
+- SD = log of spatial density of operational satellites
   * Consequence is higher when there are more operational satellites in the vacinity.
 
 Then for each object, the risk is calculated as:
@@ -607,12 +607,12 @@ SMC_out = all_conjs_expanded %>%
          AR = .005 * as.numeric(mass), 
          MF = as.numeric(mass)/1500) %>%
   left_join(cluster_summary, by="cluster_new") %>% 
-  mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) * (MF * DF * spatDensOpSats)) %>%
+  mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) + (MF * DF * spatDensOpSats)) %>%
   arrange(desc(SMC_risk)) %>%
   dplyr::select(cols_ordered) 
 
 SMC_out %>%
-  head(50) %>%
+  head(50) %>% 
   mutate(AC = format(AC, scientific = T, digits=2),
          CR = format(CR, scientific = T, digits=2)) %>%
   rename(cluster=cluster_new) %>%
