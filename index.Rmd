@@ -30,7 +30,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files}
+```{r update_conj_files, eval=F}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
@@ -572,7 +572,7 @@ cluster_summary = all_conjs_expanded %>%
 # updated values from spreadsheet 2/6/20
 cluster_summary$CR = c(1.5E-03, 1.4E-03, 2.4E-03, 8.2E-03, 3.3E-05, 1.2E-04, 3.1E-04, 2.5E-07)
 #cluster_summary$AR = c(9,8,16,6,7,7,9,15)
-cluster_summary$DF = c(25,90,120,1400,1600,2000,30,100) # why use these numbers?
+cluster_summary$DF = c(25,90,150,1000,1200,1600,150,100) # why use these numbers?
 #cluster_summary$SD = c(2.7, 2.5, 1.8, 1.2, 1.4, 1.7, 2.0, 0.5) #log(SD)
 cluster_summary$SD = c(538,346,69,17,26,56,103,3)
 
