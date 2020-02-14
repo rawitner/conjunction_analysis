@@ -596,7 +596,7 @@ cluster_summary %>%
 Top 50 statistically most concerning objects:
 
 ```{r getSMC}
-cols_ordered = c("noradId", "name","cluster_new","SMC_risk", "E5", "E1", "spatDens", "DF", "AR", "MF","spatDensOpSats","AC","CR",
+cols_ordered = c("noradId", "name","cluster_new","SMC_risk", "E5", "E1", "MF","DF","SD","AC","CR",
                  "apogee", "perigee","launch","inclination","mass","type","country")
 
 SMC_out = all_conjs_expanded %>% 
@@ -610,9 +610,10 @@ SMC_out = all_conjs_expanded %>%
          AR = .005 * as.numeric(mass), 
          MF = as.numeric(mass)/1500) %>%
   left_join(cluster_summary, by="cluster_new") %>% 
-  mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) * (MF * DF * spatDensOpSats)) %>%
+  mutate(SMC_risk = (CR * AR * E5/25 * 5 * E1) * (MF * DF * SD)) %>%
   arrange(desc(SMC_risk)) %>%
-  dplyr::select(cols_ordered) 
+  dplyr::select(cols_ordered)# %>%
+ # rename(SD = spatDensOpSats)
 
 SMC_out %>%
   head(50) %>% 
@@ -624,7 +625,7 @@ SMC_out %>%
                                 buttons = list(list(extend='excel',filename="worst_offenders_2", text="Download data", title=paste0("Worst offenders (method 2) as of ", today))),
                                 dom = 'Bfrtip'#,
                                 )) %>%
-  formatRound(columns = c("SMC_risk","spatDens","DF","spatDensOpSats","AC","CR", "MF"), digits=2) %>%
+  formatRound(columns = c("SMC_risk","DF","SD","AC","CR", "MF"), digits=2) %>%
   formatDate(columns = "launch", method = "toDateString", params = list('en-US', list(year = 'numeric', month = 'numeric', day='numeric')
       ))
 
