@@ -175,21 +175,6 @@ all_conjs = all_conjs %>%
          Range_s = 10^(Range), #rescale(Range, to=c(1e-4, 100)),
          risk_s = (combinedMass_s + persistence_s + numOpSats_s) / (Range_s)) #%>%
 
-# all_conjs = all_conjs %>% 
-#   mutate(clusterLab = if_else(firstClust=="LEO" & secondClust=="LEO", "LEO",
-#                               if_else((firstClust=="LEO" & secondClust!="LEO") |
-#                                         (firstClust!="LEO" & secondClust=="LEO"), "LEO-other",
-#                                       if_else(firstClust=="HIGH" & secondClust=="HIGH", "HIGH",
-#                                               if_else((firstClust=="HIGH" & secondClust!="HIGH") | 
-#                                                         (firstClust!="HIGH" & secondClust=="HIGH"), "HIGH-other",
-#                                                       firstClust)))),
-#          clusterLab = factor(clusterLab,
-#                              levels = c("615", "775", "850", "975", "1200", "1500", "LEO","LEO-other","HIGH","HIGH-other"),
-#                              ordered = T))
-
-# we need some kind of exponential scale for range where a 50m miss is 100x more risky
-# than a 500m miss...
-
 # sum risk for each object:
 # list all conjunctions by first sat, then by second sat, then bind by rows
 firstSet = all_conjs %>%
@@ -207,18 +192,6 @@ saveRDS(all_conjs_expanded, "RDSfiles/all_conjs_expanded") # save to RDS file
 
 ## Miss distance vs cumulative count plot
 ```{r miss_dist_cum_count_plot}
-# axis ticks for log scale
-#ticks <- 1:10
-#ooms <- 10^(0:3) # define orders of magnitudes
-#breaks <- as.vector(ticks %o% ooms)
-#breaks = c(1,2,3,4,5,6,7,8,9,10,20,30,40,
-#           50,60,708,090,100,200,300,400,500,600,700,800,
-#           900,1000,2000,3000,4000,5000,6000,7000,8000,9000,10000)
-
-#show.labels <- c(T, F, F, T, F, F, T, F)
-#labels <- as.character(breaks * show.labels)
-#labels <- gsub("^0$", "", labels)
-
 mycolors = c(brewer.pal(name="Set1", n = 9), brewer.pal(name="Set2", n = 4))
 mycolors[6] = "#000000"
 
@@ -240,10 +213,6 @@ all_conjs %>%
        subtitle = paste0("Encounters from 20OCT2019-", today))+
   #scale_color_brewer(palette="Set1")+
   scale_color_manual(values = mycolors)+
-  #scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
-  #              labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-  #scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
-  #              labels = scales::trans_format("log10", scales::math_format(10^.x)))+
   annotation_logticks()+
   scale_linetype_manual(values=c("dashed", "solid", "solid", "solid",
                                  "solid", "solid", "solid", "solid", "solid", "dashed"))
@@ -335,8 +304,6 @@ mcma_objs = all_conjs_expanded %>%
   summarise(totalRisk = sum(risk_s)) %>%
   right_join(select(mcma_objs, -totalRisk), by="noradId") %>% 
   mutate(totalRisk = if_else(is.na(totalRisk), 0, totalRisk))
-
-#saveRDS(mcma_objs, "RDSfiles/mcma_objs") # save to RDS file
 
 top50 = mcma_objs %>% 
   arrange(desc(totalRisk)) %>%
@@ -431,30 +398,9 @@ Consequence:
 
 Then for each object, the risk is calculated as:
 $$Risk = [CR * AR * {E5/25 * (5 * E1)}] * [MF * DF * SD]$$
-```{r numOpSatsVec, eval=F}
-## OLD -- DONT USE
-# numOpSatsVec contains number of op sats that cross paths with each object's path
-numOpSatsVec = vector()
-for (i in 1:nrow(mcma_objs)){
-  row = mcma_objs[i,]
-  minAlt = row$perigee
-  maxAlt = row$apogee
-  numOpSats = 0
-  for (j in 1:nrow(opSats)){
-    opSat = opSats[j,]
-    if ((opSat$perigee > minAlt & opSat$apogee < maxAlt) ||
-      (opSat$perigee < maxAlt & opSat$apogee > maxAlt) ||
-      (opSat$perigee < minAlt & opSat$apogee > minAlt)) {
-    numOpSats = numOpSats + 1
-    }
-  }
-  numOpSatsVec = append(numOpSatsVec, numOpSats)
-}
-
-mcma_objs$numOpSats = numOpSatsVec
-```
 
 ```{r getSpaDens, eval=F}
+#  OLD - don't use if using values from Darren
 # For the spatial density calculation, I'm creating a dataframe with altitude (intervals of 10) and volume; then counting the number of massive derelicts (based on their avg altitude) within each bin; then interpolating a spatial density value for each object's avg altitude.
 opSats = derelictDat %>% filter(operational & onOrbit)
 
@@ -494,6 +440,7 @@ saveRDS(mcma_objs, "RDSfiles/mcma_objs")
 ```
 
 ```{r getDF, eval=F}
+# not necessary if we're using values from Darren
 df_data = readxl::read_xlsx("misc_files/DF.xlsx", skip = 2, 
                             col_names = c("altitude","atmos_dens", "DF_old", "DF"))
 
@@ -523,9 +470,10 @@ mcma_objs = mcma_objs %>%
 saveRDS(mcma_objs, "RDSfiles/mcma_objs")
 ```
 
-Summary of key measures per cluster:
+Summary of key measures per cluster: 
 
-```{r getCR}
+```{r getCR, eval=F}
+# not necessary if we're using the CR values directly from Darren
 library(pracma)
 integrand = function(r,phi,theta) {(r^2)*sin(phi)}
 radius = 6371 #Earth's radius
@@ -552,8 +500,6 @@ cluster_summary$volume = c(get_volume(475,659),
                       get_volume(477,1589),
                       get_volume(112,69991))
 
-#cluster_summary$SD = cluster_summary$numSats / cluster_summary$volume * (10^10)
-
 cluster_summary = all_conjs_expanded %>% 
   left_join(select(mcma_objs, c(noradId, cluster_new)), by="noradId") %>%
   group_by(cluster_new) %>%
@@ -567,36 +513,44 @@ cluster_summary = all_conjs_expanded %>%
          PC = 1 - exp(-lambda * Time),
          CR = PC * numDerelicts/2) %>%
   select(-Time)
-         #CR = numSats^2/2 * (AC * velocity * Time) / volume) # collision rate
+```
+
+```{r get_cluster_summary}
+x = c("cc615","cc775","cc850","cc975","cc1200","cc1500","cleo","CHIGH")
+
+cluster_summary = mcma_objs %>% 
+  group_by(cluster_new) %>%
+  summarise(numDerelicts = n(),
+            avgMass = mean(as.numeric(mass), na.rm=T)) %>%
+  slice(match(x, cluster_new))
 
 # updated values from spreadsheet 2/6/20
-cluster_summary$CR = c(1.5E-03, 1.4E-03, 2.4E-03, 8.2E-03, 3.3E-05, 1.2E-04, 3.1E-04, 2.5E-07)
-#cluster_summary$AR = c(9,8,16,6,7,7,9,15)
-cluster_summary$DF = c(25,90,150,1000,1200,1600,150,100) # why use these numbers?
-#cluster_summary$SD = c(2.7, 2.5, 1.8, 1.2, 1.4, 1.7, 2.0, 0.5) #log(SD)
+cluster_summary$CR = c(1.5E-03, 1.4E-03, 2.4E-03, 8.2E-03, 3.3E-05, 1.2E-04, 3.3E-04, 2.5E-07)
+cluster_summary$DF = c(25,90,150,1000,1600,1800,150,1000)
 cluster_summary$SD = c(538,346,69,17,26,56,103,3)
 
 
 cluster_summary %>% 
-  mutate(AC = format(AC, scientific = T, digits=2),
-         volume = format(volume, scientific = T, digits=2),
-         lambda = format(lambda, scientific = T, digits=2),
-         PC = format(PC, scientific = T, digits=2),
-         CR = format(CR, scientific = T, digits=2)) %>%
+  #mutate(AC = format(AC, scientific = T, digits=2),
+  #       volume = format(volume, scientific = T, digits=2),
+  #       lambda = format(lambda, scientific = T, digits=2),
+  #       PC = format(PC, scientific = T, digits=2),
+  #       CR = format(CR, scientific = T, digits=2)) %>%
   rename(cluster = cluster_new,
-         `num derelicts` = numDerelicts,
-         `avg mass (kg)` = avgMass,
-         `avg diam` = diam_m) %>%
-  select(-velocity) %>%
+         #`num derelicts` = numDerelicts,
+         #`avg mass (kg)` = avgMass
+         ) %>%
+  #select(-c(velocity, AC, lambda, PC, diam_m, volume)) %>%
   kable(digits = 1, format.args = list(big.mark = ",")) %>%
   kableExtra::kable_styling()
 ```
 
+Note: values for CR, DF, and SD are used ona cluster level, meaning that all objects within a cluster have the same value for these three measures.
 
 Top 50 statistically most concerning objects:
 
 ```{r getSMC}
-cols_ordered = c("noradId", "name","cluster_new","SMC_risk", "E5", "E1", "MF","DF","SD","AC","CR",
+cols_ordered = c("noradId", "name","cluster_new","SMC_risk", "E5", "E1", "MF","DF","SD","CR",
                  "apogee", "perigee","launch","inclination","mass","type","country")
 
 SMC_out = all_conjs_expanded %>% 
@@ -617,15 +571,14 @@ SMC_out = all_conjs_expanded %>%
 
 SMC_out %>%
   head(50) %>% 
-  mutate(AC = format(AC, scientific = T, digits=2),
-         CR = format(CR, scientific = T, digits=2)) %>%
+  mutate(CR = format(CR, scientific = T, digits=2)) %>%
   rename(cluster=cluster_new) %>%
   DT::datatable(rownames=F, extensions = c('Buttons', 'Responsive'),
                 options = list( lengthMenu = c(10, 20, 30, 40, 50),
                                 buttons = list(list(extend='excel',filename="worst_offenders_2", text="Download data", title=paste0("Worst offenders (method 2) as of ", today))),
                                 dom = 'Bfrtip'#,
                                 )) %>%
-  formatRound(columns = c("SMC_risk","DF","SD","AC","CR", "MF"), digits=2) %>%
+  formatRound(columns = c("SMC_risk","DF","SD","CR", "MF"), digits=2) %>%
   formatDate(columns = "launch", method = "toDateString", params = list('en-US', list(year = 'numeric', month = 'numeric', day='numeric')
       ))
 
