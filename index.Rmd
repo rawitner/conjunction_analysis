@@ -30,7 +30,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files}
+```{r update_conj_files, eval=F}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
@@ -149,31 +149,41 @@ all_conjs_new$numOpSats = numOpSats_v
 all_conjs_new = all_conjs_new %>%
   mutate(combinedMass = if_else(grepl(",", combinedMass, fixed = T), # if it contains a comma
                                  as.numeric(gsub(",.*", "", combinedMass)), # make substring up to the comma
-                                 as.numeric(combinedMass) )) #%>% # otherwise don't change
-  #mutate(risk = (combinedMass + persistence + numOpSats) / (Range))
+                                 as.numeric(combinedMass) )) # otherwise don't change
 
 all_conjs_new = all_conjs_new %>%
   mutate(risk = (combinedMass + persistence + numOpSats) / Range,
-         combinedMass_s = rescale(combinedMass, to=c(1e-4,100)),
-         persistence_s = rescale(persistence, to=c(1e-4,100)),
-         numOpSats_s = rescale(numOpSats, to=c(1e-4,50)),
-         Range_s = rescale(Range, to=c(1e-4, 100)),
-         risk_s = (combinedMass_s + persistence_s + numOpSats_s) / (Range_s)) #%>%
-  #arrange(desc(risk_s)) %>% View()
+         # initialize scaled variables
+         combinedMass_s = 1,
+         persistence_s = 1,
+         numOpSats_s = 1,
+         Range_s = 1,
+         risk_s = 1)
 
 
 # append new conjunctions to previous
 all_conjs = rbind(all_conjs, all_conjs_new)
 saveRDS(all_conjs, "RDSfiles/all_conjs") # save to RDS file
 
-# adjust scaling
+# adjust scaling 
 all_conjs = all_conjs %>%
   mutate(risk = (combinedMass + persistence + numOpSats) / Range,
          combinedMass_s = rescale(combinedMass, to=c(0,100)),
          persistence_s = rescale(persistence, to=c(0,100)),
-         numOpSats_s = rescale(numOpSats, to=c(0,100)),
+         numOpSats_s = rescale(numOpSats, to=c(0,20)),
          Range_s = 10^(Range), #rescale(Range, to=c(1e-4, 100)),
          risk_s = (combinedMass_s + persistence_s + numOpSats_s) / (Range_s)) #%>%
+
+subset = all_conjs %>% 
+  dplyr::select(c(combinedMass, combinedMass_s, persistence, persistence_s,numOpSats, numOpSats_s, Range, Range_s, risk, risk_s ))
+
+subset %>%
+  arrange(desc(combinedMass)) %>%
+  rowid_to_column() %>%
+  ggplot() +
+  geom_line(aes(x=rowid, y=combinedMass), color="red")+
+  geom_line(aes(x=rowid, y=persistence), color="blue")
+
 
 # sum risk for each object:
 # list all conjunctions by first sat, then by second sat, then bind by rows
@@ -300,7 +310,6 @@ Using the below algorithm (with all weights equal to 1 for now-- will experiment
 ```{r top50}
 mcma_objs = all_conjs_expanded %>%
   group_by(noradId) %>% 
-  #summarise(totalRisk = sum(risk)) %>%
   summarise(totalRisk = sum(risk_s)) %>%
   right_join(select(mcma_objs, -totalRisk), by="noradId") %>% 
   mutate(totalRisk = if_else(is.na(totalRisk), 0, totalRisk))
