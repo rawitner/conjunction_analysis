@@ -531,15 +531,12 @@ cluster_summary$SD = c(538,346,69,17,26,56,103,3)
 
 
 cluster_summary %>% 
-  #mutate(AC = format(AC, scientific = T, digits=2),
+  mutate(CR = format(CR, scientific = T, digits=2)) %>%
+  #       AC = format(AC, scientific = T, digits=2),
   #       volume = format(volume, scientific = T, digits=2),
   #       lambda = format(lambda, scientific = T, digits=2),
-  #       PC = format(PC, scientific = T, digits=2),
-  #       CR = format(CR, scientific = T, digits=2)) %>%
-  rename(cluster = cluster_new,
-         #`num derelicts` = numDerelicts,
-         #`avg mass (kg)` = avgMass
-         ) %>%
+  #       PC = format(PC, scientific = T, digits=2)) %>%
+  rename(cluster = cluster_new) %>%
   #select(-c(velocity, AC, lambda, PC, diam_m, volume)) %>%
   kable(digits = 1, format.args = list(big.mark = ",")) %>%
   kableExtra::kable_styling()
