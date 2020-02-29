@@ -30,7 +30,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files, eval=F}
+```{r update_conj_files}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
@@ -177,13 +177,6 @@ all_conjs = all_conjs %>%
 subset = all_conjs %>% 
   dplyr::select(c(combinedMass, combinedMass_s, persistence, persistence_s,numOpSats, numOpSats_s, Range, Range_s, risk, risk_s ))
 
-subset %>%
-  arrange(desc(combinedMass)) %>%
-  rowid_to_column() %>%
-  ggplot() +
-  geom_line(aes(x=rowid, y=combinedMass), color="red")+
-  geom_line(aes(x=rowid, y=persistence), color="blue")
-
 
 # sum risk for each object:
 # list all conjunctions by first sat, then by second sat, then bind by rows
@@ -198,6 +191,7 @@ secondSet = all_conjs %>%
 # append new conjunctions to previous
 all_conjs_expanded = rbind(firstSet, secondSet)
 saveRDS(all_conjs_expanded, "RDSfiles/all_conjs_expanded") # save to RDS file
+
 ```
 
 ## Miss distance vs cumulative count plot
