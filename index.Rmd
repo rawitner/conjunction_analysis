@@ -30,7 +30,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files}
+```{r update_conj_files, eval=F}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
@@ -347,9 +347,7 @@ top50 %>% dplyr::select(cols_ordered) %>%
 
 - `num conjs` is the total number of conjunctions (<5km) the object has been in (since 20OCT2019)
 - `avg num op sats` is the average number of operational satellites within 100 km above or below each conjunction
-- `med num op sats` is the same as `avg num op sats` but median instead of mean
 - `avg persist of conj alt` is the average persistence (in years) of debris produced at the altitude of encounters (a rough approximation based on altitude)
-- `med persist of conj alt` is the same as `avg persist of conj alt` but median instead of mean
 - `num encounters <1 km` is the number of encounters below 1 km miss distance
 
 ### Risk among all derelicts
