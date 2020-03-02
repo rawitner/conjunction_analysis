@@ -30,7 +30,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files, eval=F}
+```{r update_conj_files}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
@@ -99,8 +99,8 @@ saveRDS(file_list, "RDSfiles/file_list")
 #########
 # WORST OFFENDER alg for new conjunctions
 # persistence
-alts = c(775,850,975,1500)
-pers = c(300,500,1800,20000)
+alts = c(615,775,850,975, 1200,1500)
+pers = c(25, 90, 150,1000,1600,1800)
 persistence = cbind(alts, pers) %>% as_tibble()
 model = lm(log(pers) ~ alts, persistence)
 intercept = as.numeric(model$coefficients[1])
@@ -174,8 +174,8 @@ all_conjs = all_conjs %>%
          Range_s = 10^(Range), #rescale(Range, to=c(1e-4, 100)),
          risk_s = (combinedMass_s + persistence_s + numOpSats_s) / (Range_s)) #%>%
 
-subset = all_conjs %>% 
-  dplyr::select(c(combinedMass, combinedMass_s, persistence, persistence_s,numOpSats, numOpSats_s, Range, Range_s, risk, risk_s ))
+#subset = all_conjs %>% 
+#  dplyr::select(c(combinedMass, combinedMass_s, persistence, #persistence_s,numOpSats, numOpSats_s, Range, Range_s, risk, risk_s ))
 
 
 # sum risk for each object:
@@ -191,6 +191,22 @@ secondSet = all_conjs %>%
 # append new conjunctions to previous
 all_conjs_expanded = rbind(firstSet, secondSet)
 saveRDS(all_conjs_expanded, "RDSfiles/all_conjs_expanded") # save to RDS file
+
+####
+#re-fit persistence model
+alts = c(615,775,850,975, 1200,1500)
+pers = c(25, 90, 150,1000,1600,1800)
+persistence = cbind(alts, pers) %>% as_tibble()
+model = lm(log(pers) ~ alts, persistence)
+intercept = as.numeric(model$coefficients[1])
+slope = as.numeric(model$coefficients[2])
+
+mcma_objs = mcma_objs %>% 
+  mutate(persistence_new = exp(intercept + slope * avgAlt))
+
+#mcma_objs %>% group_by(cluster_new) %>%
+#  summarise(avgPersistence = mean(persistence_new)) %>%
+#  slice(match(x, cluster_new))
 
 ```
 
