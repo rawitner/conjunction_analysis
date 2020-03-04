@@ -193,7 +193,6 @@ all_conjs = all_conjs %>%
 # subset = all_conjs %>% 
 #   dplyr::select(c(clusterLab, combinedMass, combinedMass_s, persistence, persistence_s,SD, SD_s, Range, Range_s, risk, risk_s ))
 
-
 # sum risk for each object:
 # list all conjunctions by first sat, then by second sat, then bind by rows
 firstSet = all_conjs %>%
