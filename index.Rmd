@@ -30,7 +30,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files}
+```{r update_conj_files, eval=F}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
@@ -101,10 +101,7 @@ saveRDS(file_list, "RDSfiles/file_list")
 # persistence
 alts = c(615,775,850,975, 1200,1500)
 pers = c(25, 90, 150,1000,1600,1800)
-persistence = cbind(alts, pers) %>% as_tibble()
-model = lm(log(pers) ~ alts, persistence)
-intercept = as.numeric(model$coefficients[1])
-slope = as.numeric(model$coefficients[2])
+lw1 <- loess(pers ~ alts)
 
 # get operational satellites
 opSats = derelictDat %>% filter(avgAlt < 2000 & operational)
@@ -154,12 +151,8 @@ all_conjs_new = all_conjs_new %>%
 all_conjs_new = all_conjs_new %>%
   mutate(risk = (combinedMass + persistence + numOpSats) / Range,
          # initialize scaled variables
-         combinedMass_s = 1,
-         persistence_s = 1,
-         numOpSats_s = 1,
-         Range_s = 1,
-         risk_s = 1)
-
+         combinedMass_s = 1, persistence_s = 1,
+         numOpSats_s = 1, Range_s = 1, risk_s = 1)
 
 # append new conjunctions to previous
 all_conjs = rbind(all_conjs, all_conjs_new)
@@ -192,22 +185,30 @@ secondSet = all_conjs %>%
 all_conjs_expanded = rbind(firstSet, secondSet)
 saveRDS(all_conjs_expanded, "RDSfiles/all_conjs_expanded") # save to RDS file
 
-####
-#re-fit persistence model
+##### 
+#re-fit persistence model - use Loess curve
 alts = c(615,775,850,975, 1200,1500)
 pers = c(25, 90, 150,1000,1600,1800)
-persistence = cbind(alts, pers) %>% as_tibble()
-model = lm(log(pers) ~ alts, persistence)
-intercept = as.numeric(model$coefficients[1])
-slope = as.numeric(model$coefficients[2])
-
+lw1 <- loess(pers ~ alts)
+#plot(pers ~ alts, xlab = "Altitude", ylab = "Persistence")
+#lines(alts,lw1$fitted,col="red",lwd=3)
 mcma_objs = mcma_objs %>% 
-  mutate(persistence_new = exp(intercept + slope * avgAlt))
+  mutate(persistence_new = predict(lw1, avgAlt))
 
+#model = lm(log(pers) ~ alts, persistence)
+#intercept = as.numeric(model$coefficients[1])
+#slope = as.numeric(model$coefficients[2])
+
+#mcma_objs = mcma_objs %>% mutate(persistence_new = exp(intercept + slope * avgAlt))
+
+#x = c("cc615","cc775","cc850","cc975","cc1200","cc1500","cleo","CHIGH")
 #mcma_objs %>% group_by(cluster_new) %>%
-#  summarise(avgPersistence = mean(persistence_new)) %>%
+#  summarise(avgPersistence = mean(persistence_new, na.rm = T)) %>%
 #  slice(match(x, cluster_new))
 
+#all_conjs %>% filter(Altitude < 2000) %>%
+#  ggplot(aes(x=Altitude, y=numOpSats)) +
+#  geom_line()
 ```
 
 ## Miss distance vs cumulative count plot
