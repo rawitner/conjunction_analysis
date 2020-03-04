@@ -30,7 +30,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files, eval=F}
+```{r update_conj_files}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
@@ -185,13 +185,13 @@ saveRDS(all_conjs, "RDSfiles/all_conjs") # save to RDS file
 all_conjs = all_conjs %>%
   mutate(risk = (combinedMass + persistence + SD) / Range,
          combinedMass_s = rescale(combinedMass, to=c(0,100)),
-         persistence_s = rescale(persistence, to=c(0,100)),
+         persistence_s = rescale(persistence, to=c(0,20)),
          SD_s = rescale(SD, to=c(0,100)),
          Range_s = if_else(Range >= 1, 10^(Range), 10), #rescale(Range, to=c(1e-4, 100)),
          risk_s = (combinedMass_s + persistence_s + SD_s) / (Range_s)) #%>%
 
-subset = all_conjs %>% 
-  dplyr::select(c(clusterLab, combinedMass, combinedMass_s, persistence, persistence_s,SD, SD_s, Range, Range_s, risk, risk_s ))
+# subset = all_conjs %>% 
+#   dplyr::select(c(clusterLab, combinedMass, combinedMass_s, persistence, persistence_s,SD, SD_s, Range, Range_s, risk, risk_s ))
 
 
 # sum risk for each object:
@@ -347,8 +347,8 @@ x = c("cc615","cc775","cc850","cc975","cc1200","cc1500","cleo","CHIGH")
 
 mcma_objs_risk = all_conjs_expanded %>%
   group_by(noradId) %>% 
-  summarise(totalRisk = sum(risk_s), n=n()) %>%
-  right_join(select(mcma_objs, -totalRisk), by="noradId") %>% 
+  summarise(totalRisk = sum(risk_s)) %>%
+  right_join(select(mcma_objs, -c(totalRisk, predicted_ad, DF, spatDensOpSats)), by="noradId") %>% 
   mutate(totalRisk = if_else(is.na(totalRisk), 0, totalRisk))
 
 top50 = mcma_objs_risk %>% 
@@ -360,10 +360,10 @@ top50 = all_conjs_expanded %>%
   group_by(noradId) %>%
   summarise(`num conjs` = n(),
             `closest approach (m)` = min(Range)*1000,
-            `avg num op sats` = mean(numOpSats),
-            `med num op sats` = median(numOpSats),
+            `avg num op sats` = mean(SD),
+            #`med num op sats` = median(numOpSats),
             `avg persist of conj alt` = mean(persistence),
-            `med persist of conj alt` = median(persistence),
+            #`med persist of conj alt` = median(persistence),
             `num encounters <1 km` = length(Range[Range<1])) %>% 
   right_join(top50, by="noradId")
 ```
