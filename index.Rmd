@@ -108,8 +108,9 @@ opSats = derelictDat %>% filter(avgAlt < 2000 & operational)
 
 combinedMass_v = vector()
 persistence_v = vector()
-numOpSats_v = vector()
-for (i in 1:nrow(all_conjs_new)) {
+#numOpSats_v = vector()
+start_time = Sys.time()
+for (i in 1:nrow(all_conjs_new)) { # each loop takes 0.9162 secs... .063317 with new op sat calc
   conj = all_conjs_new[i, ]
   noradId1 = gsub("--.*", "", conj$PrimarySatellite)
   noradId2 = gsub("--.*", "", conj$SecondarySatellite)
@@ -117,42 +118,64 @@ for (i in 1:nrow(all_conjs_new)) {
   obj2 = filter(mcma_objs, noradId == noradId2)
   
   combinedMass = as.numeric(obj1$mass) + as.numeric(obj2$mass)
-  persistence = exp(intercept + slope * conj$Altitude)
+  persistence = if_else(conj$Altitude <= 615, 25,
+                        if_else(conj$Altitude > 615 & conj$Altitude <= 1500, 
+                                predict(lw1, conj$Altitude), 1000)) 
   
-  numOpSats = 0
-  for (j in 1:nrow(opSats)) {
-    # count how many op sats overlap in altitude
-    opSat = opSats[j,]
-    conjMinAlt = conj$Altitude - 100
-    conjMaxAlt = conj$Altitude + 100
-    if ((opSat$perigee > conjMinAlt &
-         opSat$apogee < conjMaxAlt) ||
-        (opSat$perigee < conjMaxAlt &
-         opSat$apogee > conjMaxAlt) ||
-        (opSat$perigee < conjMinAlt &
-         opSat$apogee > conjMinAlt)) {
-      numOpSats = numOpSats + 1
-    }
-  }
+  # numOpSats = 0
+  # for (j in 1:nrow(opSats)) {
+  #   # count how many op sats overlap in altitude
+  #   opSat = opSats[j,]
+  #   conjMinAlt = conj$Altitude - 100
+  #   conjMaxAlt = conj$Altitude + 100
+  #   if ((opSat$perigee > conjMinAlt &
+  #        opSat$apogee < conjMaxAlt) ||
+  #       (opSat$perigee < conjMaxAlt &
+  #        opSat$apogee > conjMaxAlt) ||
+  #       (opSat$perigee < conjMinAlt &
+  #        opSat$apogee > conjMinAlt)) {
+  #     numOpSats = numOpSats + 1
+  #   }
+  # }
   
   combinedMass_v = append(combinedMass_v, toString(combinedMass))
   persistence_v = append(persistence_v, persistence)
-  numOpSats_v = append(numOpSats_v, numOpSats)
+  #numOpSats_v = append(numOpSats_v, numOpSats)
 }
 all_conjs_new$combinedMass = combinedMass_v
 all_conjs_new$persistence = persistence_v
-all_conjs_new$numOpSats = numOpSats_v
+#all_conjs_new$numOpSats = numOpSats_v
+end_time = Sys.time()
 
+## get SD op sats per conj
+alt_bins = readRDS("RDSfiles/alt_bins")
+roundDown <- function(x) 10*floor(x/10)
+library(zoo)
+alt_bins = derelictDat %>% 
+  filter(avgAlt < 2000 & operational) %>%
+  mutate(altitude = roundDown((as.numeric(apogee) + as.numeric(perigee))/2)) %>% 
+  group_by(altitude) %>% 
+  summarise(numOpSats = n()) %>% 
+  right_join(alt_bins, by="altitude") %>%
+  mutate(numOpSats = replace_na(numOpSats, 0)) %>% 
+  mutate(spatDensOpSats_1 = numOpSats / volume * (10^10)) %>%
+  mutate(SD = rollmean(spatDensOpSats_1, k=5, na.pad=T)) %>% na.omit()
+
+all_conjs_new = all_conjs_new %>% 
+  mutate(altitude = roundDown(Altitude)) %>% 
+  left_join(select(alt_bins, c(altitude, SD)), by="altitude") 
+
+# replace missing mass values
 all_conjs_new = all_conjs_new %>%
   mutate(combinedMass = if_else(grepl(",", combinedMass, fixed = T), # if it contains a comma
                                  as.numeric(gsub(",.*", "", combinedMass)), # make substring up to the comma
                                  as.numeric(combinedMass) )) # otherwise don't change
 
 all_conjs_new = all_conjs_new %>%
-  mutate(risk = (combinedMass + persistence + numOpSats) / Range,
+  mutate(risk = (combinedMass + persistence + SD) / Range,
          # initialize scaled variables
          combinedMass_s = 1, persistence_s = 1,
-         numOpSats_s = 1, Range_s = 1, risk_s = 1)
+         SD_s = 1, Range_s = 1, risk_s = 1)
 
 # append new conjunctions to previous
 all_conjs = rbind(all_conjs, all_conjs_new)
@@ -160,15 +183,15 @@ saveRDS(all_conjs, "RDSfiles/all_conjs") # save to RDS file
 
 # adjust scaling 
 all_conjs = all_conjs %>%
-  mutate(risk = (combinedMass + persistence + numOpSats) / Range,
+  mutate(risk = (combinedMass + persistence + SD) / Range,
          combinedMass_s = rescale(combinedMass, to=c(0,100)),
          persistence_s = rescale(persistence, to=c(0,100)),
-         numOpSats_s = rescale(numOpSats, to=c(0,20)),
-         Range_s = 10^(Range), #rescale(Range, to=c(1e-4, 100)),
-         risk_s = (combinedMass_s + persistence_s + numOpSats_s) / (Range_s)) #%>%
+         SD_s = rescale(SD, to=c(0,100)),
+         Range_s = if_else(Range >= 1, 10^(Range), 10), #rescale(Range, to=c(1e-4, 100)),
+         risk_s = (combinedMass_s + persistence_s + SD_s) / (Range_s)) #%>%
 
-#subset = all_conjs %>% 
-#  dplyr::select(c(combinedMass, combinedMass_s, persistence, #persistence_s,numOpSats, numOpSats_s, Range, Range_s, risk, risk_s ))
+subset = all_conjs %>% 
+  dplyr::select(c(clusterLab, combinedMass, combinedMass_s, persistence, persistence_s,SD, SD_s, Range, Range_s, risk, risk_s ))
 
 
 # sum risk for each object:
@@ -187,14 +210,13 @@ saveRDS(all_conjs_expanded, "RDSfiles/all_conjs_expanded") # save to RDS file
 
 ##### 
 #re-fit persistence model - use Loess curve
-alts = c(615,775,850,975, 1200,1500)
-pers = c(25, 90, 150,1000,1600,1800)
-lw1 <- loess(pers ~ alts)
+#alts = c(615,775,850,975, 1200,1500)
+#pers = c(25, 90, 150,1000,1600,1800)
+#lw1 <- loess(pers ~ alts)
 #plot(pers ~ alts, xlab = "Altitude", ylab = "Persistence")
 #lines(alts,lw1$fitted,col="red",lwd=3)
-mcma_objs = mcma_objs %>% 
-  mutate(persistence_new = predict(lw1, avgAlt))
 
+# OLD
 #model = lm(log(pers) ~ alts, persistence)
 #intercept = as.numeric(model$coefficients[1])
 #slope = as.numeric(model$coefficients[2])
@@ -321,13 +343,15 @@ ggplot() +
 The weights are selected so that combined mass and persistence both vary on a scale from 0 to 100 and number of operational satellites varies on a scale from 0 to 20. 
 
 ```{r top50}
-mcma_objs = all_conjs_expanded %>%
+x = c("cc615","cc775","cc850","cc975","cc1200","cc1500","cleo","CHIGH")
+
+mcma_objs_risk = all_conjs_expanded %>%
   group_by(noradId) %>% 
-  summarise(totalRisk = sum(risk_s)) %>%
+  summarise(totalRisk = sum(risk_s), n=n()) %>%
   right_join(select(mcma_objs, -totalRisk), by="noradId") %>% 
   mutate(totalRisk = if_else(is.na(totalRisk), 0, totalRisk))
 
-top50 = mcma_objs %>% 
+top50 = mcma_objs_risk %>% 
   arrange(desc(totalRisk)) %>%
   head(50)
 
