@@ -46,7 +46,6 @@ colnames = c("PrimarySatellite","SecondarySatellite","TCA_EpDay",
 all_conjs_new = data.frame()
 for (i in 1:length(file_list_new)) {
   file = paste0(path, file_list_new[i])
-  #print(file)
   
   firstLine = readLines(file, n=2)[2]
   
@@ -147,6 +146,12 @@ all_conjs_new$persistence = persistence_v
 #all_conjs_new$numOpSats = numOpSats_v
 end_time = Sys.time()
 
+# replace missing mass values
+all_conjs_new = all_conjs_new %>%
+  mutate(combinedMass = if_else(grepl(",", combinedMass, fixed = T), # if it contains a comma
+                                 as.numeric(gsub(",.*", "", combinedMass)), # make substring up to the comma
+                                 as.numeric(combinedMass) )) # otherwise don't change
+
 ## get SD op sats per conj
 alt_bins = readRDS("RDSfiles/alt_bins")
 roundDown <- function(x) 10*floor(x/10)
@@ -165,12 +170,6 @@ all_conjs_new = all_conjs_new %>%
   mutate(altitude = roundDown(Altitude)) %>% 
   left_join(select(alt_bins, c(altitude, SD)), by="altitude") 
 
-# replace missing mass values
-all_conjs_new = all_conjs_new %>%
-  mutate(combinedMass = if_else(grepl(",", combinedMass, fixed = T), # if it contains a comma
-                                 as.numeric(gsub(",.*", "", combinedMass)), # make substring up to the comma
-                                 as.numeric(combinedMass) )) # otherwise don't change
-
 all_conjs_new = all_conjs_new %>%
   mutate(risk = (combinedMass + persistence + SD) / Range,
          # initialize scaled variables
@@ -188,7 +187,7 @@ all_conjs = all_conjs %>%
          persistence_s = rescale(persistence, to=c(0,20)),
          SD_s = rescale(SD, to=c(0,100)),
          Range_s = if_else(Range >= 1, 10^(Range), 10), #rescale(Range, to=c(1e-4, 100)),
-         risk_s = (combinedMass_s + persistence_s + SD_s) / (Range_s)) #%>%
+         risk_s = (combinedMass_s + persistence_s + SD_s) / (Range_s)) 
 
 # subset = all_conjs %>% 
 #   dplyr::select(c(clusterLab, combinedMass, combinedMass_s, persistence, persistence_s,SD, SD_s, Range, Range_s, risk, risk_s ))
