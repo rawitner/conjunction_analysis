@@ -30,7 +30,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files, warning=F}
+```{r update_conj_files, warning=F, eval=F}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
@@ -182,12 +182,50 @@ saveRDS(all_conjs, "RDSfiles/all_conjs") # save to RDS file
 
 # adjust scaling 
 all_conjs = all_conjs %>%
-  mutate(combinedMass_s = rescale(combinedMass, to=c(0,100)),
-         persistence_s = rescale(persistence, to=c(0,100)),
-         SD_s = rescale(SD, to=c(0,100)),
+  mutate(combinedMass_s = scale(combinedMass),#rescale(combinedMass, to=c(0,1000)),
+         persistence_s = scale(persistence), #rescale(persistence, to=c(0,1000)),
+         SD_s = scale(SD), #rescale(SD, to=c(0,1000)),
          Range_s = if_else(Range >= 1, 10^(Range), 10), #rescale(Range, to=c(1e-4, 100)),
+         conseq = combinedMass + persistence + SD,
+         conseq_s = combinedMass_s + persistence_s + SD_s,
          risk_s = (combinedMass_s + persistence_s + SD_s) / (Range_s),
-         risk = (combinedMass + persistence + SD) / Range_s)
+         risk = (combinedMass + persistence + SD) / Range_s) 
+
+min_cm = min(all_conjs$combinedMass_s, na.rm=T)
+min_pers = min(all_conjs$persistence_s)
+min_SD = min(all_conjs$SD_s)
+
+all_conjs = all_conjs %>%
+  mutate(combinedMass_s = combinedMass_s + abs(min_cm),
+         persistence_s = persistence_s + abs(min_pers),
+         SD_s = SD_s + abs(min_SD),
+         risk_s = (combinedMass_s + persistence_s + SD_s) / (Range_s))
+
+# clip = pipe("pbcopy", "w")
+# all_conjs %>% group_by(clusterLab) %>%
+#   summarise(avgConseq = mean(conseq, na.rm=T),
+#             avgConseq_s = mean(conseq_s, na.rm=T),
+#             avgCM = mean(combinedMass, na.rm=T),
+#             avgCM_s = mean(combinedMass_s, na.rm=T),
+#             avgPers = mean(persistence),
+#             avgPers_s = mean(persistence_s),
+#             avgSD = mean(SD),
+#             avgSD_s = mean(SD_s),
+#             avgRisk = mean(risk, na.rm=T),
+#             avgRisk_s = mean(risk_s, na.rm=T),
+#             totRisk = sum(risk, na.rm=T),
+#             totRisk_s = sum(risk_s, na.rm=T)) %>%
+#   #kable(digits = 1, format.args = list(big.mark=","))
+#   write.table(file=clip, sep = '\t', row.names = FALSE)
+# close(clip)
+# 
+# all_conjs %>% dplyr::select(c(combinedMass_s,persistence_s, SD_s)) %>%
+#   summarise_all(list(min=min, max=max, mean=mean, sd=sd), na.rm=T) %>%
+#   write.table(file=clip, sep = '\t', row.names = FALSE)
+# 
+# all_conjs %>% arrange(desc(risk)) %>%
+#   head(50) %>%
+#   write.table(file=clip, sep = '\t', row.names = FALSE)
 
 # sum risk for each object:
 # list all conjunctions by first sat, then by second sat, then bind by rows
@@ -211,21 +249,6 @@ saveRDS(all_conjs_expanded, "RDSfiles/all_conjs_expanded") # save to RDS file
 #plot(pers ~ alts, xlab = "Altitude", ylab = "Persistence")
 #lines(alts,lw1$fitted,col="red",lwd=3)
 
-# OLD
-#model = lm(log(pers) ~ alts, persistence)
-#intercept = as.numeric(model$coefficients[1])
-#slope = as.numeric(model$coefficients[2])
-
-#mcma_objs = mcma_objs %>% mutate(persistence_new = exp(intercept + slope * avgAlt))
-
-#x = c("cc615","cc775","cc850","cc975","cc1200","cc1500","cleo","CHIGH")
-#mcma_objs %>% group_by(cluster_new) %>%
-#  summarise(avgPersistence = mean(persistence_new, na.rm = T)) %>%
-#  slice(match(x, cluster_new))
-
-#all_conjs %>% filter(Altitude < 2000) %>%
-#  ggplot(aes(x=Altitude, y=numOpSats)) +
-#  geom_line()
 ```
 
 ## Miss distance vs cumulative count plot
@@ -333,7 +356,7 @@ ggplot() +
 
 ## Worst offender analysis-- Method 1
 
-![SMC #1 graphic](misc_files/SMCderelicts.png)
+![Graphical explanation of algorithm](misc_files/SMCderelicts.png)
 
 
 ```{r top50}
@@ -341,9 +364,10 @@ x = c("cc615","cc775","cc850","cc975","cc1200","cc1500","cleo","CHIGH")
 
 mcma_objs_risk = all_conjs_expanded %>%
   group_by(noradId) %>% 
-  summarise(totalRisk = sum(risk)) %>%
+  summarise(totalRisk = sum(risk_s)) %>%
   right_join(select(mcma_objs, -c(totalRisk, predicted_ad, DF, spatDensOpSats)), by="noradId") %>% 
-  mutate(totalRisk = if_else(is.na(totalRisk), 0, totalRisk))
+  mutate(totalRisk = if_else(is.na(totalRisk), 0, totalRisk)) %>%
+  arrange(desc(totalRisk))
 
 top50 = mcma_objs_risk %>% 
   arrange(desc(totalRisk)) %>%
@@ -353,12 +377,11 @@ top50 = all_conjs_expanded %>%
   filter(noradId %in% top50$noradId) %>%
   group_by(noradId) %>%
   summarise(`num conjs` = n(),
+            `num encounters <1 km` = length(Range[Range<1]),
             `closest approach (m)` = min(Range)*1000,
             `avg num op sats` = mean(SD),
             #`med num op sats` = median(numOpSats),
-            `avg persist of conj alt` = mean(persistence),
-            #`med persist of conj alt` = median(persistence),
-            `num encounters <1 km` = length(Range[Range<1])) %>% 
+            `avg persist of conj alt` = mean(persistence)) %>% 
   right_join(top50, by="noradId")
 ```
 
@@ -389,9 +412,9 @@ top50 %>% dplyr::select(cols_ordered) %>%
 Among all derelicts, percent of risk accounted for by each cluster:
 
 ```{r risk_plot, fig.width=4}
-totRisk = mcma_objs %>% summarise(totRisk = sum(totalRisk)) %>% pull()
+totRisk = mcma_objs_risk %>% summarise(totRisk = sum(totalRisk)) %>% pull()
 
-mcma_objs %>% group_by(cluster_new) %>%
+mcma_objs_risk %>% group_by(cluster_new) %>%
   summarise(p = sum(totalRisk)) %>% 
   mutate(p = p/totRisk*100,
          cluster_new = factor(cluster_new,
