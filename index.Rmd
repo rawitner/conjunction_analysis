@@ -187,7 +187,7 @@ all_conjs = all_conjs %>%
          SD_s = rescale(SD, to=c(0,100)),
          Range_s = if_else(Range >= 1, 10^(Range), 10), #rescale(Range, to=c(1e-4, 100)),
          risk_s = (combinedMass_s + persistence_s + SD_s) / (Range_s),
-         risk = (combinedMass + persistence + SD) / Range_s,) 1
+         risk = (combinedMass + persistence + SD) / Range_s)
 
 # sum risk for each object:
 # list all conjunctions by first sat, then by second sat, then bind by rows
