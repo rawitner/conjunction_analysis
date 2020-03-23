@@ -108,7 +108,6 @@ opSats = derelictDat %>% filter(avgAlt < 2000 & operational)
 combinedMass_v = vector()
 persistence_v = vector()
 #numOpSats_v = vector()
-start_time = Sys.time()
 for (i in 1:nrow(all_conjs_new)) {
   conj = all_conjs_new[i, ]
   noradId1 = gsub("--.*", "", conj$PrimarySatellite)
@@ -144,7 +143,6 @@ for (i in 1:nrow(all_conjs_new)) {
 all_conjs_new$combinedMass = combinedMass_v
 all_conjs_new$persistence = persistence_v
 #all_conjs_new$numOpSats = numOpSats_v
-end_time = Sys.time()
 
 # replace missing mass values
 all_conjs_new = all_conjs_new %>%
@@ -172,9 +170,10 @@ all_conjs_new = all_conjs_new %>%
 
 all_conjs_new = all_conjs_new %>%
   mutate(risk = (combinedMass + persistence + SD) / Range,
+         conseq = combinedMass + persistence + SD,
          # initialize scaled variables
          combinedMass_s = 1, persistence_s = 1,
-         SD_s = 1, Range_s = 1, risk_s = 1)
+         SD_s = 1, Range_s = 1, risk_s = 1, conseq_s=1)
 
 # append new conjunctions to previous
 all_conjs = rbind(all_conjs, all_conjs_new)
