@@ -255,23 +255,23 @@ saveRDS(all_conjs_expanded, "RDSfiles/all_conjs_expanded") # save to RDS file
 mycolors = c(brewer.pal(name="Set1", n = 9), brewer.pal(name="Set2", n = 4))
 mycolors[6] = "#000000"
 
-all_conjs %>%
+all_conjs %>% 
   mutate(Range = Range * 1000) %>%
   group_by(clusterLab) %>%
   arrange(Range) %>%
   mutate(rowid = 1, cumnum = cumsum(rowid)) %>% 
-  rename(Cluster = clusterLab) %>%
+  rename(Cluster = clusterLab) %>% 
   ggplot(aes(x=Range, y = cumnum, color=Cluster, linetype=Cluster)) + 
   geom_line() +
   theme_light() +
-  scale_x_log10(labels = c(10,100,300,500,1000,5000), 
-                breaks = c(10,100,300,500,1000, 5000)) +
+  scale_x_log10(labels = c(10,100,500,1000,5000), 
+                breaks = c(10,100,500,1000,5000))+#,
+                #limits = c(1, 5000)) +
   scale_y_log10(labels = c(10,100,300,500,1000,3000,5000), 
                 breaks = c(10,100,300,500,1000,3000,5000)) +
-  labs(x="Miss Distance (m)", y="Cumulative Number of Encounters", #color="Cluster",
+  labs(x="Miss Distance (m)", y="Cumulative Number of Encounters",
        title="Cumulative Number of Encounters by Cluster", 
        subtitle = paste0("Encounters from 20OCT2019-", today))+
-  #scale_color_brewer(palette="Set1")+
   scale_color_manual(values = mycolors)+
   annotation_logticks()+
   scale_linetype_manual(values=c("dashed", "solid", "solid", "solid",
