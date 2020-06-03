@@ -30,7 +30,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files, warning=F, eval=F}
+```{r update_conj_files, warning=F}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
