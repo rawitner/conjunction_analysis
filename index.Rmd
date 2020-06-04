@@ -26,6 +26,7 @@ derelicts = readRDS("RDSfiles/derelicts")
 derelictDat = readRDS("RDSfiles/derelictDatNew")
 alt_bins = readRDS("RDSfiles/alt_bins")
 file_list = readRDS("RDSfiles/file_list")
+all_conjs_2016 = readRDS("RDSfiles/all_conjs_2016")
 today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
@@ -120,29 +121,11 @@ for (i in 1:nrow(all_conjs_new)) {
                         if_else(conj$Altitude > 615 & conj$Altitude <= 1500, 
                                 predict(lw1, conj$Altitude), 1000)) 
   
-  # numOpSats = 0
-  # for (j in 1:nrow(opSats)) {
-  #   # count how many op sats overlap in altitude
-  #   opSat = opSats[j,]
-  #   conjMinAlt = conj$Altitude - 100
-  #   conjMaxAlt = conj$Altitude + 100
-  #   if ((opSat$perigee > conjMinAlt &
-  #        opSat$apogee < conjMaxAlt) ||
-  #       (opSat$perigee < conjMaxAlt &
-  #        opSat$apogee > conjMaxAlt) ||
-  #       (opSat$perigee < conjMinAlt &
-  #        opSat$apogee > conjMinAlt)) {
-  #     numOpSats = numOpSats + 1
-  #   }
-  # }
-  
   combinedMass_v = append(combinedMass_v, toString(combinedMass))
   persistence_v = append(persistence_v, persistence)
-  #numOpSats_v = append(numOpSats_v, numOpSats)
 }
 all_conjs_new$combinedMass = combinedMass_v
 all_conjs_new$persistence = persistence_v
-#all_conjs_new$numOpSats = numOpSats_v
 
 # replace missing mass values
 all_conjs_new = all_conjs_new %>%
@@ -200,32 +183,6 @@ all_conjs = all_conjs %>%
          SD_s = SD_s + abs(min_SD),
          risk_s = (combinedMass_s + persistence_s + SD_s) / (Range_s))
 
-# clip = pipe("pbcopy", "w")
-# all_conjs %>% group_by(clusterLab) %>%
-#   summarise(avgConseq = mean(conseq, na.rm=T),
-#             avgConseq_s = mean(conseq_s, na.rm=T),
-#             avgCM = mean(combinedMass, na.rm=T),
-#             avgCM_s = mean(combinedMass_s, na.rm=T),
-#             avgPers = mean(persistence),
-#             avgPers_s = mean(persistence_s),
-#             avgSD = mean(SD),
-#             avgSD_s = mean(SD_s),
-#             avgRisk = mean(risk, na.rm=T),
-#             avgRisk_s = mean(risk_s, na.rm=T),
-#             totRisk = sum(risk, na.rm=T),
-#             totRisk_s = sum(risk_s, na.rm=T)) %>%
-#   #kable(digits = 1, format.args = list(big.mark=","))
-#   write.table(file=clip, sep = '\t', row.names = FALSE)
-# close(clip)
-# 
-# all_conjs %>% dplyr::select(c(combinedMass_s,persistence_s, SD_s)) %>%
-#   summarise_all(list(min=min, max=max, mean=mean, sd=sd), na.rm=T) %>%
-#   write.table(file=clip, sep = '\t', row.names = FALSE)
-# 
-# all_conjs %>% arrange(desc(risk)) %>%
-#   head(50) %>%
-#   write.table(file=clip, sep = '\t', row.names = FALSE)
-
 # sum risk for each object:
 # list all conjunctions by first sat, then by second sat, then bind by rows
 firstSet = all_conjs %>%
@@ -240,14 +197,6 @@ secondSet = all_conjs %>%
 all_conjs_expanded = rbind(firstSet, secondSet)
 saveRDS(all_conjs_expanded, "RDSfiles/all_conjs_expanded") # save to RDS file
 
-##### 
-#re-fit persistence model - use Loess curve
-#alts = c(615,775,850,975, 1200,1500)
-#pers = c(25, 90, 150,1000,1600,1800)
-#lw1 <- loess(pers ~ alts)
-#plot(pers ~ alts, xlab = "Altitude", ylab = "Persistence")
-#lines(alts,lw1$fitted,col="red",lwd=3)
-
 ```
 
 ## Miss distance vs cumulative count plot
@@ -255,13 +204,12 @@ saveRDS(all_conjs_expanded, "RDSfiles/all_conjs_expanded") # save to RDS file
 mycolors = c(brewer.pal(name="Set1", n = 9), brewer.pal(name="Set2", n = 4))
 mycolors[6] = "#000000"
 
-#all_conjs %>% 
-all_conjs_new_2016 %>%
+all_conjs %>% 
   mutate(Range = Range * 1000) %>%
-  group_by(Cluster) %>% # clusterLab
+  group_by(clusterLab) %>% 
   arrange(Range) %>%
-  mutate(rowid = 1, cumnum = cumsum(rowid)) #%>% 
-  #rename(Cluster = clusterLab) %>% 
+  mutate(rowid = 1, cumnum = cumsum(rowid)) %>% 
+  rename(Cluster = clusterLab) %>% 
   ggplot(aes(x=Range, y = cumnum, color=Cluster, linetype=Cluster)) + 
   geom_line() +
   theme_light() +
@@ -273,10 +221,10 @@ all_conjs_new_2016 %>%
   labs(x="Miss Distance (m)", y="Cumulative Number of Encounters",
        title="Cumulative Number of Encounters by Cluster", 
        subtitle = paste0("Encounters from 20OCT2019-", today))+
-  #scale_color_manual(values = mycolors)+
-  annotation_logticks()#+
-  #scale_linetype_manual(values=c("dashed", "solid", "solid", "solid",
-                                 #"solid", "solid", "solid", "solid", "solid", "dashed"))
+  scale_color_manual(values = mycolors)+
+  annotation_logticks()+
+  scale_linetype_manual(values=c("dashed", "solid", "solid", "solid",
+                                 "solid", "solid", "solid", "solid", "solid", "dashed"))
 ```
 
 ## Percent of Encounters by Country
@@ -674,5 +622,23 @@ SMC_out %>% #head(50) %>%
         panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   labs(fill="Cluster", y="Risk")+
   scale_fill_brewer(type = "qual")
+```
+
+
+```{r}
+# add new conjunctions to all_conjs_2016
+all_conjs_2016 = all_conjs %>% 
+  filter(TCA_UTCG > max(all_conjs_2016$TCA_UTCG)) %>% 
+  dplyr::select(c(PrimarySatellite:clusterLab)) %>%
+  bind_rows(all_conjs_2016) %>%
+  mutate(noradId_1 = as.numeric(gsub("--.*", "", PrimarySatellite)),
+         noradId_2 = as.numeric(gsub("--.*", "", SecondarySatellite))) %>% 
+  left_join(dplyr::select(mcma_objs, c(noradId, cluster, cluster_new)), by=c("noradId_1" = "noradId")) %>%
+  rename_at(vars(c(cluster, cluster_new)), function(x) paste0(x, "_1")) %>%
+  left_join(dplyr::select(mcma_objs, c(noradId, cluster, cluster_new)), by=c("noradId_2" = "noradId")) %>%
+  rename_at(vars(c(cluster, cluster_new)), function(x) paste0(x, "_2")) %>% 
+  dplyr::select(-c(noradId_1, noradId_2))
+
+saveRDS(all_conjs_2016, "RDSfiles/all_conjs_2016")
 ```
 
