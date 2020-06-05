@@ -1,6 +1,8 @@
 ---
-output: html_document
-title: Conjunction Analysis
+title: "Conjunction Analysis"
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r include=F}
@@ -31,7 +33,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files, warning=F}
+```{r update_conj_files, warning=F, eval=F}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
@@ -625,7 +627,7 @@ SMC_out %>% #head(50) %>%
 ```
 
 
-```{r}
+```{r eval=F}
 # add new conjunctions to all_conjs_2016
 all_conjs_2016 = all_conjs %>% 
   filter(TCA_UTCG > max(all_conjs_2016$TCA_UTCG)) %>% 
