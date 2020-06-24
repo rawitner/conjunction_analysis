@@ -33,7 +33,7 @@ today = toupper(strftime(Sys.Date(), format="%d%b%Y")) # current day
 path = "conj_data/"
 ```
 
-```{r update_conj_files, warning=F, eval=F}
+```{r update_conj_files, warning=F}
 # add new conjunction files to all_conjs dataframe
 
 # read in new conjunction files
@@ -218,8 +218,8 @@ all_conjs %>%
   scale_x_log10(labels = c(10,100,500,1000,5000), 
                 breaks = c(10,100,500,1000,5000))+#,
                 #limits = c(1, 5000)) +
-  scale_y_log10(labels = c(10,100,300,500,1000,3000,5000), 
-                breaks = c(10,100,300,500,1000,3000,5000)) +
+  scale_y_log10(labels = c(10,100,500,1000,5000,10000,50000), 
+                breaks = c(10,100,500,1000,5000,10000,50000)) +
   labs(x="Miss Distance (m)", y="Cumulative Number of Encounters",
        title="Cumulative Number of Encounters by Cluster", 
        subtitle = paste0("Encounters from 20OCT2019-", today))+
@@ -627,16 +627,16 @@ SMC_out %>% #head(50) %>%
 ```
 
 
-```{r eval=F}
+```{r}
 # add new conjunctions to all_conjs_2016
 all_conjs_2016 = all_conjs %>% 
   filter(TCA_UTCG > max(all_conjs_2016$TCA_UTCG)) %>% 
-  dplyr::select(c(PrimarySatellite:clusterLab)) %>%
-  bind_rows(all_conjs_2016) %>%
+  dplyr::select(c(PrimarySatellite:clusterLab)) %>% 
+  bind_rows(dplyr::select(all_conjs_2016, c(PrimarySatellite:clusterLab))) %>%
   mutate(noradId_1 = as.numeric(gsub("--.*", "", PrimarySatellite)),
          noradId_2 = as.numeric(gsub("--.*", "", SecondarySatellite))) %>% 
   left_join(dplyr::select(mcma_objs, c(noradId, cluster, cluster_new)), by=c("noradId_1" = "noradId")) %>%
-  rename_at(vars(c(cluster, cluster_new)), function(x) paste0(x, "_1")) %>%
+  rename_at(vars(c(cluster, cluster_new)), function(x) paste0(x, "_1")) %>% 
   left_join(dplyr::select(mcma_objs, c(noradId, cluster, cluster_new)), by=c("noradId_2" = "noradId")) %>%
   rename_at(vars(c(cluster, cluster_new)), function(x) paste0(x, "_2")) %>% 
   dplyr::select(-c(noradId_1, noradId_2))
